@@ -8,6 +8,7 @@ import { isLocked, makeWindy, addPick, onFrame } from './world.js';
 import { blockRect } from './nav.js';
 import { Actor } from './actor.js';
 import { $, toast, floatAt, emit, makeLabel } from './ui.js';
+import { motor, splash } from './audio.js';
 import { open, close, esc } from './dialog.js';
 import { face } from './portraits.js';
 
@@ -51,7 +52,7 @@ export function plotAt(x, z) {
   return null;
 }
 
-const cropUnlocked = k => !C.crops[k].from || solved(C.crops[k].from);
+const cropUnlocked = k => { const f = C.crops[k].from; return !f || (typeof f === 'string' ? !!S.chests[f] : solved(f)); };
 
 // Действие с грядкой (Лев уже подошёл). Возвращает true, если что-то сделали.
 export function actPlot(p, quiet = false) {
@@ -87,7 +88,7 @@ export function actPlot(p, quiet = false) {
 // ---------- отрисовка урожая (инстансинг, пересобираем при смене стадий) ----------
 const MODELS = {
   wheat: ['nature/crops_wheatStageB', 0.95], carrot: ['nature/crop_carrot', 0.55],
-  sunflower: ['nature/flower_yellowA', 1.4], pumpkin: ['nature/crop_pumpkin', 0.6],
+  sunflower: ['nature/flower_yellowA', 1.4], pumpkin: ['nature/crop_pumpkin', 0.6], goldwheat: ['nature/crops_wheatStageB', 1.1],
 };
 const OFFS = [[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]];
 let layer, signature = '';
@@ -175,6 +176,7 @@ function startMachine(zoneId, a) {
   if (!ps.length) return;
   if (a.id === 'water') { // полив — без машины, сразу
     let n = 0; for (const p of ps) if (actPlot(p, true)) n++;
+    splash();
     toast(`Полито грядок: ${n}. Растёт вдвое быстрее!`);
     return;
   }
@@ -184,6 +186,7 @@ function startMachine(zoneId, a) {
   if (home) home.visible = false;
   scene.add(obj);
   run = { obj, plots: ps, i: 0, home, act: a.id, want: a.want, done: 0 };
+  motor(true);
 }
 
 function updateMachine(dt) {
@@ -196,6 +199,7 @@ function updateMachine(dt) {
   if (stage(p) === run.want && actPlot(p, true)) run.done++;
   if (++run.i >= run.plots.length) {
     scene.remove(run.obj);
+    motor(false);
     if (run.home) run.home.visible = true;
     const names = { tractor: 'Вспахано', seeder: 'Засеяно', combine: 'Собрано' };
     toast(`${names[run.act]} грядок: ${run.done}` + (run.act === 'seeder' && run.done < run.plots.length ? ' — монеты на семена кончились' : ''));
@@ -371,6 +375,12 @@ function showDecor() {
       }
       g.position.set(0, 0, 10); blockRect(-1.8, 10, 0.4, 0.4); blockRect(1.8, 10, 0.4, 0.4); return g;
     },
+    rooster() { // флюгер-петушок на крыше дома (из сундука)
+      const g = new THREE.Group();
+      g.add(m(B(0.08, 1.4, 0.08), '#495057', 0, 0.7, 0), m(B(0.7, 0.05, 0.05), '#495057', 0, 1.1, 0));
+      const r = fitHeight(cloneModel('pets/animal-chick'), 0.6); r.position.y = 1.4; g.add(r);
+      g.position.set(-8.5, 4.8, 14); return g;
+    },
     lanterns() {
       const pts = [{ x: 1.9, z: 18 }, { x: 1.9, z: 21 }, { x: -1.9, z: 27.5 }, { x: 1.9, z: 27.5 }];
       pts.forEach(p => blockRect(p.x, p.z, 0.5, 0.5));
@@ -401,7 +411,7 @@ export function marketScreen(tab = 'sell') {
       <div class="row"><button class="btn g" id="sellAll">Продать всё за ${total}</button></div>`
     : `<div class="q small">Пока нечего продавать. Собери урожай на грядках — и приходи!</div>`;
   const shop = `<div class="list">${C.shop.map(it => {
-      const owned = it.paint ? S.paint === it.paint : S.decor.includes(it.id);
+      const owned = it.paint ? S.paint === it.paint : it.collar ? S.collar === it.collar : S.decor.includes(it.id);
       const lockedByStars = it.stars && S.stars < it.stars;
       const price = it.stars ? `за ${it.stars}⭐` : `${it.cost} <span class="coin"></span>`;
       const btn = owned ? '<i>есть ✓</i>' : lockedByStars ? `<i>нужно ${it.stars}⭐</i>` : `<button class="btn y sm" data-buy="${it.id}">${it.stars ? 'Забрать' : 'Купить'}</button>`;
@@ -426,7 +436,7 @@ export function marketScreen(tab = 'sell') {
 function buy(id) {
   const it = C.shop.find(x => x.id === id);
   if (it.cost) { if (S.coins < it.cost) return toast('Не хватает монет'); S.coins -= it.cost; }
-  if (it.paint) S.paint = it.paint; else S.decor.push(id);
+  if (it.paint) S.paint = it.paint; else if (it.collar) S.collar = it.collar; else S.decor.push(id);
   save(); applyAll(); hooks.onChange();
   toast(`${it.name} — готово!`);
   emit('buy', id);

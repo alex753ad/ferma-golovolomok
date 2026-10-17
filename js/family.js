@@ -3,7 +3,7 @@ import { CONFIG } from './config.js';
 import { S, save, today } from './save.js';
 import { isLocked } from './world.js';
 import { talk } from './dialog.js';
-import { on, toast } from './ui.js';
+import { on, toast, emit } from './ui.js';
 import { GRANNY } from '../data/story.js';
 
 const C = CONFIG;
@@ -40,6 +40,7 @@ export async function momTalk() {
     await talk('mom', ['Спасибо, помощник! Завтра будет новое поручение. А пока — беги решать задачи!']);
   } else if (choreDone(ch)) {
     ch.claimed = true;
+    emit('chore');
     S.coins += C.choreCoins;
     S.pieUntil = Date.now() + C.pieMinutes * 60000;
     save(); hooks.onChange();

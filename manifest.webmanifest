@@ -1,0 +1,17 @@
+{
+  "name": "Ферма Головоломок",
+  "short_name": "Ферма",
+  "description": "3D-ферма и олимпиадные задачи для 5 класса",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#86c34f",
+  "theme_color": "#86c34f",
+  "lang": "ru",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

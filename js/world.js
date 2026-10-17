@@ -395,6 +395,15 @@ function trees() {
     else flowers[i % 3].push({ x, z, rot: rnd() * 6 });
   }
   scene.add(instances('nature/plant_bush', bushes, { height: 0.7, shadow: false }));
+  // камни и пни по краям
+  const rocks = [], stumps = [];
+  for (let i = 0; i < 40; i++) {
+    const x = rr(BOUNDS.x0 + 1, BOUNDS.x1 - 1), z = rr(BOUNDS.z0 + 1, BOUNDS.z1 - 1);
+    if (onRoadOrZone(x, z, 1.5) || !isFree(x, z) || Math.hypot(x, z - 21) < 6) continue;
+    (i % 2 ? rocks : stumps).push({ x, z, rot: rnd() * 6, s: rr(0.7, 1.2) });
+  }
+  scene.add(instances('nature/rock_largeA', rocks, { height: 0.7 }), instances('nature/stump_round', stumps, { height: 0.45 }));
+  for (const r of [...rocks, ...stumps]) blockCircle(r.x, r.z, 0.5);
   ['nature/flower_redA', 'nature/flower_yellowA', 'nature/flower_purpleA'].forEach((k, i) =>
     scene.add(makeWindy(instances(k, flowers[i], { height: 0.45, shadow: false }), 0.5)));
 }

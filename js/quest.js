@@ -3,7 +3,8 @@ import { TASKS, COINS_BY_STARS } from '../data/tasks.js';
 import { CONFIG } from './config.js';
 import { S, save, today, hashPin, checkPin } from './save.js';
 import { face } from './portraits.js';
-import { $ } from './ui.js';
+import { $, emit } from './ui.js';
+import { sfx, ring, setTheme } from './audio.js';
 import { open, close, isOpen, keypad, bindKeys, shake, talk, confetti, esc, T } from './dialog.js';
 
 const N = CONFIG.names;
@@ -48,6 +49,7 @@ export function tryTask(id) {
 }
 
 async function startTask(id, t) {
+  emit('taskStarted');
   {
     if (S.cur?.id === t.id) {               // задача уже начата
       if (S.cur.blocked) return dadCall();
@@ -74,6 +76,7 @@ let timer;
 function taskScreen(note = '') {
   const c = S.cur, t = TASKS.find(x => x.id === c.id), v = variant(c);
   const stars = starsNow(c);
+  setTheme(t.boss ? 'boss' : 'farm');
   const grannyOk = !c.hint1 && S.grannyGiven === today() && S.grannyDay !== today();
   const hintBtn = !c.hint1 ? 'Подсказка −⭐' : !c.hint2 ? 'Подсказка 2 −⭐' : '';
   open(`<div class="l">
@@ -125,7 +128,7 @@ function check(str) {
   }
   c.hint1 = true; save();
   taskScreen();
-  shake();
+  shake(); sfx('soft');
   const m = $('msg');
   m.textContent = 'Почти! Вот подсказка — попробуй ещё раз.';
 }
@@ -138,6 +141,8 @@ function solved() {
   if (t.reward.zone && !S.unlocked.includes(t.reward.zone)) S.unlocked.push(t.reward.zone);
   save();
   clearInterval(timer);
+  sfx(t.boss ? 'boss' : 'correct');
+  emit('solved', { id: t.id, stars, errors: c.totalErrors, hintsUsed: c.hintsUsed, granny: c.granny });
   open(`<div class="l win-box">
       <div class="win">Верно! Ответ: ${v.a}</div>
       <div class="big-stars">${[1, 2, 3].map(i => `<i class="${i <= stars ? 'on' : ''}" style="animation-delay:${i * 0.15}s">★</i>`).join('')}</div>
@@ -154,6 +159,7 @@ function solved() {
 // ---------- звонок папе ----------
 function dadCall() {
   clearInterval(timer);
+  ring(true);
   open(`<div class="phone">
       <div class="phone-top">📞 Звоним папе…</div>
       ${face('dad', '#c5f6fa')}
@@ -168,9 +174,10 @@ function dadCall() {
   hooks.onChange();
   bindKeys(4, pin => {
     if (!checkPin(pin)) { shake(); return; }
+    ring(false);
     dadExplain();
   }, true);
-  $('later').onclick = close;
+  $('later').onclick = () => { ring(false); close(); };
 }
 
 // После PIN: решение для папы, потом — задача-близнец.

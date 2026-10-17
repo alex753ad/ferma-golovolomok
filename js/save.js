@@ -21,7 +21,18 @@ function fresh() {
     paint: null,         // цвет трактора
     story: {},           // какие сюжетные сцены уже показаны
     pieUntil: 0,
-    counters: {},        // счётчики для поручений
+    counters: {},        // счётчики для поручений и достижений
+    maxDay: '',          // самая поздняя дата (защита от перевода часов назад)
+    day: null,           // сегодняшний день: время, решённые задачи, вечер
+    streak: { last: '', count: 0 },
+    pets: {},            // питомцы за серию дней
+    chests: {},          // открытые сундуки
+    dailyUsed: [],       // какие задачи дня уже были
+    dadTasks: [],        // задачи от папы: { q, a, hint, done }
+    badges: {},          // достижения
+    hat: 'cap',          // что надето у Льва
+    collar: null,        // цвет ошейника Симы
+    parent: { tasksPerDay: 3, minutes: 60, prizes: [{ text: '', cond: 'stars' }, { text: '', cond: 'stars' }, { text: '', cond: 'stars' }, { text: '', cond: 'stars' }] },
     unlocked: [],        // открытые зоны
     playSeconds: 0,
   };
@@ -32,7 +43,7 @@ export let S = load() || fresh();
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    return s && s.v === 1 ? { ...fresh(), ...s } : null;
+    return s && s.v === 1 ? { ...fresh(), ...s, parent: { ...fresh().parent, ...s.parent } } : null;
   } catch { return null; }
 }
 
@@ -42,10 +53,16 @@ export function save() {
 
 export function resetAll() { const pin = S.pinHash; S = fresh(); S.pinHash = pin; save(); }
 
-// Дата устройства в виде 2026-10-17
+// Дата устройства в виде 2026-10-17. Если часы перевели назад — остаёмся в самом позднем дне.
+export const dateKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 export function today() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const real = dateKey(new Date());
+  if (!S.maxDay || real > S.maxDay) S.maxDay = real;
+  return S.maxDay;
+}
+export function yesterdayOf(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return dateKey(new Date(y, m - 1, d - 1));
 }
 
 // Простой хэш, чтобы PIN не лежал в сохранении открытым текстом.

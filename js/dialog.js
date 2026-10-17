@@ -2,6 +2,7 @@
 import { CONFIG } from './config.js';
 import { face } from './portraits.js';
 import { $ } from './ui.js';
+import { sfx } from './audio.js';
 
 const N = CONFIG.names;
 const veil = $('veil'), dlg = $('dlg');
@@ -14,6 +15,7 @@ export const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '
 export const T = s => esc(fill(s));
 
 export function open(html, cls = '') {
+  removeEventListener('keydown', keyHandler); // клавиатура прошлого окна больше не слушает
   dlg.className = 'dlg ' + cls;
   dlg.onclick = null;
   dlg.innerHTML = html;
@@ -33,6 +35,7 @@ export function bindKeys(maxLen, onEnter, mask = false) {
   let v = '';
   const show = () => { $('ans').textContent = v ? (mask ? '●'.repeat(v.length) : v) : '?'; };
   const press = k => {
+    sfx('tick', 0.5);
     if (k === 'del') v = v.slice(0, -1);
     else if (k === 'ok') { if (v) { const val = v; v = ''; show(); onEnter(val); } return; }
     else if (v.length < maxLen) v += k;
@@ -41,7 +44,7 @@ export function bindKeys(maxLen, onEnter, mask = false) {
   dlg.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => press(b.dataset.k)));
   removeEventListener('keydown', keyHandler);
   keyHandler = e => {
-    if (veil.hidden) return;
+    if (veil.hidden || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     if (/^\d$/.test(e.key)) press(e.key);
     else if (e.key === 'Backspace') press('del');
     else if (e.key === 'Enter') press('ok');

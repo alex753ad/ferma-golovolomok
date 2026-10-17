@@ -21,6 +21,7 @@ export const CONFIG = {
     carrot:    { name: 'Морковь',   icon: '🥕', seed: 5,  price: 14, grow: 'carrot',     from: 2 },
     sunflower: { name: 'Подсолнух', icon: '🌻', seed: 10, price: 35, grow: 'sunflower',  from: 7 },
     pumpkin:   { name: 'Тыква',     icon: '🎃', seed: 15, price: 70, grow: 'greenhouse', from: 17 },
+    goldwheat: { name: 'Золотая пшеница', icon: '✨', seed: 6, price: 30, grow: 'wheat', from: 'c2' }, // из сундука
   },
 
   // Животные: корм (монет), сколько минут ждать, что дают и сколько.
@@ -54,6 +55,8 @@ export const CONFIG = {
     { id: 'paint-gold',  name: 'Золотой трактор',            icon: '⭐', stars: 30, paint: '#ffd43b' },
     { id: 'gold-hen',    name: 'Золотая курица',             icon: '⭐', stars: 20 },
     { id: 'parrot',      name: 'Попугай Кеша',               icon: '⭐', stars: 40 },
+    { id: 'collar-blue', name: 'Синий ошейник для Симы',     icon: '⭐', stars: 10, collar: '#1c7ed6' },
+    { id: 'collar-gold', name: 'Золотой ошейник для Симы',   icon: '⭐', stars: 35, collar: '#ffd43b' },
   ],
 
   // Поручения мамы (без математики). need — с какой задачи доступно.
@@ -66,6 +69,8 @@ export const CONFIG = {
     { id: 'water',   text: 'Полей 3 грядки',              goal: 3, need: 8 },
   ],
   choreCoins: 25,
+  daily: { coins: 25 },   // задача дня: монеты (+1 звезда)
+  streakPets: { dog: 3, goat: 7, horse: 14 }, // питомцы за серию дней
   pieMinutes: 3,     // пирог: Лев ходит быстрее
   pieSpeed: 1.5,
 

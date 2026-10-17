@@ -16,7 +16,7 @@ export class Actor {
     this.path = null;
     this.speed = 4;
     this.onArrive = null;
-    if (hat) addHat(this.body, hat);
+    this.hat = hat ? addHat(this.body, hat) : null;
     this.play(this.actions.idle ? 'idle' : 'static');
   }
 
@@ -47,6 +47,11 @@ export class Actor {
   }
 
   stop() { this.path = null; this.play('idle'); }
+
+  setHat(kind) {
+    if (this.hat) this.hat.removeFromParent();
+    this.hat = kind ? addHat(this.body, kind) : null;
+  }
 
   lookAt(x, z) { this.targetRot = Math.atan2(x - this.root.position.x, z - this.root.position.z); }
 
@@ -104,6 +109,10 @@ function addHat(body, kind) {
     const net = new THREE.MeshLambertMaterial({ color: '#495057', transparent: true, opacity: 0.3, side: THREE.DoubleSide });
     g.add(cyl(0.4, 0.02, '#f1f3f5'), cyl(0.23, 0.16, '#f1f3f5', 0.08), cyl(0.36, 0.3, net, -0.15, true));
     g.position.y = 0.32;
+  } else if (kind === 'cowboy') {
+    g.add(cyl(0.42, 0.02, '#8d5524'), cyl(0.2, 0.18, '#8d5524', 0.09), cyl(0.205, 0.04, '#3b2412', 0.03));
+    g.children[0].scale.set(1, 1, 0.8);
+    g.position.y = 0.3;
   } else if (kind === 'dad') {
     // усы — чтобы папа отличался от Льва
     const m = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.03), hatMat('#4a2f1b'));
@@ -116,4 +125,5 @@ function addHat(body, kind) {
   }
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   head.add(g);
+  return g;
 }

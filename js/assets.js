@@ -12,12 +12,12 @@ const materials = {};   // общий материал на пакет+имя
 const LIST = {
   chars: ['character-male-a', 'character-male-b', 'character-male-c', 'character-male-d', 'character-male-e', 'character-male-f',
           'character-female-b', 'character-female-c', 'character-female-f'],
-  pets: ['animal-cat', 'animal-chick', 'animal-cow', 'animal-bee', 'animal-parrot'],
+  pets: ['animal-cat', 'animal-dog', 'animal-chick', 'animal-cow', 'animal-bee', 'animal-parrot'],
   cars: ['tractor', 'truck', 'tractor-shovel'],
-  town: ['windmill', 'blade', 'watermill', 'stall', 'stall-red', 'stall-green', 'fence', 'fence-gate', 'tree', 'tree-high-round', 'tree-crooked', 'hedge', 'lantern', 'cart'],
-  surv: ['chest', 'barrel', 'signpost-single', 'workbench', 'box', 'tree-autumn'],
+  town: ['windmill', 'stall', 'stall-red', 'stall-green', 'fence', 'tree-high-round', 'lantern'],
+  surv: ['chest', 'barrel', 'signpost-single', 'workbench', 'box'],
   nature: ['crops_wheatStageB', 'crop_carrot', 'crop_pumpkin', 'crops_leafsStageA', 'crops_dirtRow', 'flower_redA', 'flower_yellowA', 'flower_purpleA',
-           'plant_bush', 'plant_bushLarge', 'tree_oak', 'tree_default', 'tree_fat', 'tree_pineRoundC', 'rock_largeA', 'stump_round', 'log_stack', 'lily_large'],
+           'plant_bush', 'tree_oak', 'tree_default', 'tree_fat', 'tree_pineRoundC', 'rock_largeA', 'stump_round', 'log_stack', 'lily_large'],
 };
 
 // Набор Nature Kit слишком бирюзовый — подкрашиваем под тёплый стиль игры.

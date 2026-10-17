@@ -1,6 +1,6 @@
 // Проверка ответов всех задач перебором/вычислением.
 // Запуск: node tools/verify-tasks.mjs
-import { TASKS } from '../data/tasks.js';
+import { TASKS, DAILY, CHESTS } from '../data/tasks.js';
 
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 const first = (from, ok) => { for (let n = from; n < 100000; n++) if (ok(n)) return n; };
@@ -59,6 +59,27 @@ for (const t of TASKS) {
   if (t.twins.length < 2) { bad++; cells.push('мало близнецов ✗'); }
   for (const x of [t, ...t.twins]) if (!Number.isInteger(x.a) || x.a < 0 || x.a > 9999) { bad++; cells.push(`ответ ${x.a} не 0–9999 ✗`); }
   console.log(String(t.id).padStart(2), '|', cells.join(' | '));
+}
+
+// Задачи дня и сундуки: независимое вычисление
+const zeros = n => { let z = 0; for (let k = 5; k <= n; k *= 5) z += Math.floor(n / k); return z; };
+// Минутная стрелка обгоняет часовую на 360° каждые 12/11 часа. Считаем моменты совпадения в [0; 24 ч).
+const meets = () => { let c = 0; for (let k = 0; k * 12 / 11 < 24; k++) c++; return c; };
+const EXTRA = {
+  d1: first(1, x => x + (x - 12) === 50), d2: range(10, 99).filter(n => Math.floor(n / 10) + n % 10 === 5).length,
+  d3: first(1, p => p + (p - 4) === 20), d4: first(1, w => w === 1000 + w / 2), d5: legs(8, 26, 2, 4),
+  d6: first(1, n => n % 3 === 2 && n % 5 === 4), d7: first(1, n => (n - 2) * (n - 1) * n === 120) ,
+  d8: meets(), d9: 17 + 12 - (25 - 3), d10: range(100, 999).filter(n => new Set(String(n)).size === 1).length,
+  d11: first(0, x => x * 3 + 7 === 40), d12: 40 / 2 * 4, d13: range(1, 20).reduce((a, b) => a + b),
+  d14: [1, 2, 3].reduce((s, k) => s + (4 - k) ** 2, 0), d15: 2 + 1,
+  c1: first(1, g => g + g / 12 === 65), c2: zeros(25), c3: Number([1, 3, 5, 7].join('')),
+  c4: first(1000, n => new Set(String(n)).size === 4), c5: range(2001, 2099).find(y => String(y) === [...String(y)].reverse().join('')),
+};
+console.log('\nЗадачи дня и сундуки (в файле / проверка):');
+for (const t of [...DAILY, ...CHESTS]) {
+  const ok = t.a === EXTRA[t.id];
+  if (!ok) bad++;
+  console.log(t.id.padStart(3), '|', `${t.a} / ${EXTRA[t.id]} ${ok ? '✓' : '✗'}`);
 }
 console.log(bad ? `\nОШИБОК: ${bad}` : '\nВсе ответы верны.');
 process.exit(bad ? 1 : 0);
