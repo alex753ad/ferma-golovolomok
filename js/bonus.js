@@ -113,7 +113,7 @@ export const CHEST_REWARDS = {
   hat: { icon: '🤠', name: 'Ковбойская шляпа' },
   goldwheat: { icon: '✨', name: 'Редкие семена: золотая пшеница' },
   rooster: { icon: '🐓', name: 'Флюгер-петушок на крышу' },
-  collar: { icon: '🎀', name: 'Бантик для {cat}' },
+  collar: { icon: '🎀', name: 'Бантик-ошейник для кошки' },
   coins: { icon: '💰', name: '150 монет' },
 };
 const chestObjs = {};

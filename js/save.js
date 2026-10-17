@@ -74,7 +74,8 @@ export function hashPin(pin) {
 export const checkPin = pin => S.pinHash === hashPin(pin);
 
 // ---------- код сохранения ----------
-// Формат: FG1-<base64url(deflate(JSON))>-<контрольная сумма>. Сжатие — встроенное в браузер.
+// Формат: FG1-<base64url(deflate(JSON))>-<контрольная сумма>. Сжатие — встроенное в браузер
+// (в старых браузерах — FG0, то же без сжатия).
 const b64 = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 const sum = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 1679616; return h.toString(36).padStart(4, '0'); };
@@ -84,6 +85,10 @@ async function pipe(bytes, stream) {
 }
 
 export async function exportCode() {
+  if (typeof CompressionStream === 'undefined') { // старый браузер — без сжатия
+    const body = b64(new TextEncoder().encode(JSON.stringify(S)));
+    return `FG0-${body}-${sum(body)}`;
+  }
   const data = await pipe(new TextEncoder().encode(JSON.stringify(S)), new CompressionStream('deflate-raw'));
   const body = b64(data);
   return `FG1-${body}-${sum(body)}`;
@@ -91,10 +96,11 @@ export async function exportCode() {
 
 // Возвращает true, если код подошёл и прогресс восстановлен.
 export async function importCode(code) {
-  const m = code.trim().replace(/\s+/g, '').match(/^FG1-([A-Za-z0-9_-]+)-([0-9a-z]{4})$/);
-  if (!m || sum(m[1]) !== m[2]) return false;
+  const m = code.trim().replace(/\s+/g, '').match(/^FG([01])-([A-Za-z0-9_-]+)-([0-9a-z]{4})$/);
+  if (!m || sum(m[2]) !== m[3]) return false;
   try {
-    const json = new TextDecoder().decode(await pipe(unb64(m[1]), new DecompressionStream('deflate-raw')));
+    const raw = unb64(m[2]);
+    const json = new TextDecoder().decode(m[1] === '0' ? raw : await pipe(raw, new DecompressionStream('deflate-raw')));
     const s = JSON.parse(json);
     if (s.v !== 1) return false;
     S = { ...fresh(), ...s };

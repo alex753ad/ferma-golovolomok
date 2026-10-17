@@ -22,6 +22,7 @@ export function initAudio() {
     setInterval(schedule, 100);
   };
   addEventListener('pointerdown', start, { capture: true });
+  addEventListener('pointerup', () => ctx?.state === 'suspended' && !document.hidden && ctx.resume(), { capture: true });
   addEventListener('keydown', start, { capture: true });
   document.addEventListener('visibilitychange', () => ctx && (document.hidden ? ctx.suspend() : ctx.resume()));
 }

@@ -82,4 +82,47 @@ for (const t of [...DAILY, ...CHESTS]) {
   console.log(t.id.padStart(3), '|', `${t.a} / ${EXTRA[t.id]} ${ok ? '✓' : '✗'}`);
 }
 console.log(bad ? `\nОШИБОК: ${bad}` : '\nВсе ответы верны.');
+// node tools/verify-tasks.mjs --md  → таблица в docs/ПРОВЕРКА_ЗАДАЧ.md
+if (process.argv.includes('--md')) {
+  const fs = await import('fs');
+  const short = q => q.replace(/\{(\w+)\}/g, (m, k) => ({ lev: 'Лев', cat: 'Сима' })[k] || m).replace(/\|/g, '/');
+  const who = { grandpa: 'Дедушка Сергей', valya: 'Тётя Валя', beekeeper: 'Пасечник', petrovich: 'Петрович', miller: 'Мельник' };
+  let md = `# Проверка ответов
+
+Создано скриптом \`node tools/verify-tasks.mjs --md\`. Каждый ответ пересчитан независимо: перебором или формулой (см. tools/verify-tasks.mjs).
+
+`;
+  md += `## 20 основных задач и близнецы
+
+| № | Кто | Условие | Ответ | Проверка | Близнец 1 | Близнец 2 |
+|---|---|---|---|---|---|---|
+`;
+  for (const t of TASKS) {
+    const e = CHECK[t.id], ok = (g, i) => g === e[i] ? '✓' : '✗';
+    md += `| ${t.id}${t.boss ? ' 🏆' : ''} | ${who[t.npc]} | ${short(t.q)} | **${t.a}** | ${e[0]} ${ok(t.a, 0)} | ${short(t.twins[0].q)} → **${t.twins[0].a}** (${e[1]} ${ok(t.twins[0].a, 1)}) | ${short(t.twins[1].q)} → **${t.twins[1].a}** (${e[2]} ${ok(t.twins[1].a, 2)}) |
+`;
+  }
+  md += `
+## Задачи дня
+
+| № | Условие | Ответ | Проверка |
+|---|---|---|---|
+`;
+  for (const t of DAILY) md += `| ${t.id} | ${short(t.q)} | **${t.a}** | ${EXTRA[t.id]} ${t.a === EXTRA[t.id] ? '✓' : '✗'} |
+`;
+  md += `
+## Загадки сундуков (код замка)
+
+| № | Загадка | Код | Проверка |
+|---|---|---|---|
+`;
+  for (const t of CHESTS) md += `| ${t.id} | ${short(t.q)} | **${t.a}** | ${EXTRA[t.id]} ${t.a === EXTRA[t.id] ? '✓' : '✗'} |
+`;
+  md += `
+**Итог: ${bad ? 'ОШИБОК ' + bad : 'все 80 ответов верны'}.**
+`;
+  fs.mkdirSync(new URL('../docs/', import.meta.url), { recursive: true });
+  fs.writeFileSync(new URL('../docs/ПРОВЕРКА_ЗАДАЧ.md', import.meta.url), md);
+  console.log('Таблица записана в docs/ПРОВЕРКА_ЗАДАЧ.md');
+}
 process.exit(bad ? 1 : 0);
