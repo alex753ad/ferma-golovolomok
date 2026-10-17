@@ -7,6 +7,7 @@ export const BOUNDS = { x0: -44, x1: 44, z0: -34, z1: 38 };
 export const SPAWN = { x: 0, z: 21 };
 
 export const ZONES = [
+  { id: 'strip',      name: 'Дедова полоска', x: -14, z: 29, w: 9,  d: 3,  lock: 0,  gate: 's', kind: 'beds' },
   { id: 'beds',       name: 'Грядки',      x: -17, z: 15,  w: 6,  d: 5,  lock: 1,  gate: 's', kind: 'beds' },
   { id: 'coop',       name: 'Курятник',    x: -27, z: 15,  w: 7,  d: 6,  lock: 3,  gate: 's', kind: 'coop' },
   { id: 'field1',     name: 'Поле 1',      x: -14, z: 1,   w: 14, d: 9,  lock: 4,  gate: 'e', kind: 'field' },
@@ -47,11 +48,12 @@ export const NPCS = [
   { id: 'valya',    name: 'Тётя Валя',       model: 'character-female-f', x: 3,   z: 31,  rot: -0.8 },
   { id: 'miller',   name: 'Мельник',         model: 'character-male-a',   x: -26, z: -12, rot: 1.3 },
   { id: 'beekeeper',name: 'Пасечник',        model: 'character-male-c',   x: 22,  z: 22.5, rot: 0,   hat: 'bee' },
+  { id: 'grandma',  name: 'Бабушка Оля',     model: 'character-female-c', x: -3,  z: 30.5, rot: 0.6, dynamic: true },
   { id: 'baron',    name: 'Барон Хапкин',    model: 'character-male-d',   x: 7,   z: -31, rot: 0,   hat: 'top' },
 ];
 
 // Цвет точки NPC на миникарте
 export const NPC_COLORS = {
   grandpa: '#1c7ed6', mom: '#e64980', petrovich: '#f76707', valya: '#ae3ec9',
-  miller: '#868e96', beekeeper: '#fab005', baron: '#5f3dc4',
+  miller: '#868e96', beekeeper: '#fab005', baron: '#5f3dc4', grandma: '#f06595',
 };

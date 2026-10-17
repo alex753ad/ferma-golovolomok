@@ -8,10 +8,15 @@ import { findPath, blockCircle } from './nav.js';
 import { Actor } from './actor.js';
 import { CameraRig } from './controls.js';
 import { Minimap } from './minimap.js';
-import { $, toast, makeLabel } from './ui.js';
+import { $, toast, makeLabel, setCamera } from './ui.js';
 import { S, save } from './save.js';
 import { makePortraits } from './portraits.js';
-import { initQuest, talkTo, npcWithTask, solvedCount, pinSetup, isOpen } from './quest.js';
+import { initQuest, tryTask, chat, npcWithTask, solvedCount, pinSetup, isOpen } from './quest.js';
+import { setNameResolver } from './dialog.js';
+import { initFarm, plotAt, actPlot, actPen, actMachine, grantItem, marketScreen, onZoneOpened, farmMarkers } from './farm.js';
+import { initFamily, momTalk, momHasNews, grannyTalk, grannyPlace, grannyHasNews } from './family.js';
+import { initStory, prologue, afterWin } from './story.js';
+import { isLocked, fireworks } from './world.js';
 
 const params = new URLSearchParams(location.search);
 const qualityName = params.get('q') === 'eco' ? 'economy' : 'high';
@@ -47,6 +52,7 @@ S.unlocked.forEach(unlockZone);
 
 // Имя персонажа: для семьи — из настроек
 const npcName = id => CONFIG.names[id] || NPCS.find(n => n.id === id)?.name || id;
+setNameResolver(npcName);
 
 // Портреты для диалогов
 makePortraits({
@@ -77,10 +83,26 @@ const npcs = NPCS.map(n => {
   a.bang.position.y = 3.1;
   a.root.add(a.bang);
   scene.add(a.root);
-  addPick(n.x, n.z, 0.9, 2, { type: 'npc', id: n.id, actor: a });
-  blockCircle(n.x, n.z, 0.55);
+  a.pick = addPick(n.x, n.z, 0.9, 2, { type: 'npc', id: n.id, actor: a });
+  if (!n.dynamic) blockCircle(n.x, n.z, 0.55);
   return a;
 });
+const npcById = id => npcs.find(a => a.data.id === id);
+
+// Персонажи, которые переезжают по сюжету
+function moveNpc(id, p) {
+  const a = npcById(id);
+  a.root.visible = !!p;
+  if (!p) { a.pick.position.y = -100; return; }
+  a.root.position.set(p.x, 0, p.z);
+  a.pick.position.set(p.x, 1, p.z);
+}
+function placeNpcs() {
+  moveNpc('grandma', grannyPlace());
+  if (!isLocked('apiary')) moveNpc('beekeeper', { x: 27, z: -11 });
+}
+placeNpcs();
+setCamera(camera);
 
 // ---------- касания ----------
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitP = new THREE.Vector3();
@@ -114,14 +136,31 @@ function onTap(cx, cy) {
         lev.lookAt(o.x, o.z);
         u.actor.lookAt(lev.root.position.x, lev.root.position.z);
         u.actor.once('emote-yes');
-        talkTo(u.id);
+        npcTalk(u.id);
       });
       return;
     }
-    goTo(o.x, o.z, 1.8, () => { lev.lookAt(o.x, o.z); lev.once('interact-right'); toast(u.name); });
+    goTo(o.x, o.z, 1.8, () => {
+      lev.lookAt(o.x, o.z); lev.once('interact-right');
+      const [kind, id] = u.id.split(':');
+      if (kind === 'pen') actPen(id); else if (kind === 'machine') actMachine(id); else toast(u.name);
+    });
     return;
   }
-  if (ray.ray.intersectPlane(plane, hitP)) { ping(cx, cy); goTo(hitP.x, hitP.z); }
+  if (!ray.ray.intersectPlane(plane, hitP)) return;
+  ping(cx, cy);
+  const plot = plotAt(hitP.x, hitP.z);
+  if (plot) goTo(plot.x, plot.z, 1.2, () => { lev.lookAt(plot.x, plot.z); lev.once('interact-right'); actPlot(plot); });
+  else goTo(hitP.x, hitP.z);
+}
+
+// Разговор: сначала сюжетная задача, потом — дела персонажа
+function npcTalk(id) {
+  if (tryTask(id)) return;
+  if (id === 'valya') return marketScreen();
+  if (id === 'mom') return momTalk();
+  if (id === 'grandma') return grannyTalk();
+  chat(id);
 }
 
 const rig = new CameraRig(camera, renderer.domElement, onTap);
@@ -130,7 +169,7 @@ rig.snap(lev.root.position);
 const minimap = new Minimap(
   () => ({
     player: { x: lev.root.position.x, z: lev.root.position.z, rot: lev.root.rotation.y },
-    markers: npcs.map(a => ({ x: a.root.position.x, z: a.root.position.z, color: NPC_COLORS[a.data.id], bang: a.data.id === npcWithTask() })),
+    markers: [...farmMarkers(), ...npcs.filter(a => a.root.visible).map(a => ({ x: a.root.position.x, z: a.root.position.z, color: NPC_COLORS[a.data.id], bang: a.data.id === npcWithTask() }))],
   }),
   (x, z) => goTo(x, z),
 );
@@ -142,14 +181,37 @@ function refresh() {
   $('solved').textContent = solvedCount();
   const who = npcWithTask();
   for (const a of npcs) a.bang.visible = a.data.id === who;
+  // мама и бабушка: значок, если есть поручение/подсказка
+  npcById('mom').news.visible = momHasNews() && who !== 'mom';
+  npcById('grandma').news.visible = grannyHasNews();
+}
+for (const id of ['mom', 'grandma']) {
+  const a = npcById(id);
+  a.news = makeLabel([[id === 'mom' ? '🥧' : '💡', '700 40px sans-serif']], 64, 64, '#ffe3ec', '#2b2a1f', 0.012);
+  a.news.position.y = 3.1;
+  a.root.add(a.news);
+}
+function showBanner() {
+  const banner = makeLabel([['🏆 Лучшая ферма округа', '700 30px Fredoka, Nunito, sans-serif']], 380, 64, '#ffd43b', '#2b2a1f', 0.016);
+  banner.position.set(-7, 7.5, 14);
+  scene.add(banner);
 }
 initQuest({
   npcName,
   onChange: refresh,
   onReward(t) {
-    if (t.reward.zone) { unlockZone(t.reward.zone); minimap.invalidate(); }
+    if (t.reward.zone) { unlockZone(t.reward.zone, true); minimap.invalidate(); onZoneOpened(); placeNpcs(); }
+    if (t.reward.item) grantItem(t.reward.item);
   },
+  onWinClosed: t => afterWin(t),
 });
+initFarm(scene, { lev, onChange: refresh });
+initFamily({ onChange: refresh });
+initStory({
+  focus: id => { const a = npcById(id); if (a.root.visible) goTo(a.root.position.x, a.root.position.z, 1.6); },
+  onFinal: () => { showBanner(); fireworks(lev.root.position.x, lev.root.position.z - 6, 10); },
+});
+if (S.story.final) showBanner();
 refresh();
 setInterval(save, 30000); // время в игре и прочее — раз в полминуты
 
@@ -164,8 +226,9 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
   playTime += dt;
   if (!document.hidden) S.playSeconds += dt;
+  lev.speed = CONFIG.walkSpeed * (S.pieUntil > Date.now() ? CONFIG.pieSpeed : 1);
   lev.update(dt);
-  for (const a of npcs) { a.update(dt); a.bang.position.y = 3.1 + Math.abs(Math.sin(t * 3)) * 0.25; }
+  for (const a of npcs) { a.update(dt); a.bang.position.y = 3.1 + Math.abs(Math.sin(t * 3)) * 0.25; if (a.news) a.news.position.y = a.bang.position.y; }
   rig.update(dt, lev.root.position);
   followSun(lev.root.position.x, lev.root.position.z);
   setDayPhase(dayOverride ?? playTime / 3600);
@@ -174,7 +237,8 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-window.game = { rig, lev, npcs, camera, scene, renderer, talkTo, S: () => S }; // для отладки из консоли
+window.game = { rig, lev, npcs, camera, scene, renderer, npcTalk, S: () => S }; // для отладки из консоли
 $('load').remove();
 if (!S.pinHash) await pinSetup();
+await prologue();
 toast('Нажми на землю — Лев пойдёт туда. Тяни пальцем — поверни камеру.', 4500);

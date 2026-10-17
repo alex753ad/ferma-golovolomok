@@ -136,3 +136,32 @@ button:focus-visible { outline: 3px solid #1c7ed6; outline-offset: 2px; }
 @keyframes blink { 50% { opacity: .4; } }
 @keyframes ring { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(-6deg); } 20% { transform: rotate(6deg); } 30% { transform: rotate(0); } }
 @media (max-height: 640px) { .phone .face { width: 80px; height: 80px; } .phone-text { font-size: 15px; } .keys button, .btn { min-height: 52px; } .ans { height: 58px; } }
+.fl { position: fixed; z-index: 8; font: 700 26px var(--disp); color: #fff; -webkit-text-stroke: 1.5px #8a5a00; pointer-events: none; animation: up 1s forwards; white-space: nowrap; }
+@keyframes up { to { transform: translateY(-60px); opacity: 0; } }
+
+/* ---------- Ферма ---------- */
+.seed-btn { position: fixed; left: var(--l); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); z-index: 5; min-height: 56px; padding: 0 18px;
+  border: 0; border-radius: 18px; background: var(--paper); font: 700 20px var(--disp); box-shadow: 0 4px 0 #d8cfb6; display: flex; gap: 6px; align-items: center; }
+.seed-btn:active { transform: translateY(3px); box-shadow: none; }
+.farm-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); z-index: 5; display: flex; gap: 10px; }
+.farm-bar .btn { font-size: 20px; padding: 0 20px; white-space: nowrap; animation: pop .25s; }
+.list { display: flex; flex-direction: column; gap: 8px; }
+.li { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #fff; border-radius: 14px; padding: 8px 14px; min-height: 56px; font: 800 18px var(--body); }
+.li small { color: #8a7a5a; margin-left: 6px; }
+.li b { font: 700 20px var(--disp); display: flex; gap: 6px; align-items: center; }
+.li i { font-style: normal; color: #8a7a5a; font-size: 15px; }
+.btn.sm { min-height: 48px; font-size: 17px; padding: 0 16px; flex: none; }
+.muted { font: 800 14px var(--body); color: #8a7a5a; }
+.tabs { display: flex; gap: 8px; }
+.tab { flex: 1; min-height: 52px; border: 0; border-radius: 14px; background: #efe6cf; font: 700 20px var(--disp); }
+.tab.on { background: var(--clay); color: #fff; }
+.market { max-width: 640px; }
+.market .who { padding-right: 56px; }
+
+/* Главы и финал */
+.chapter-dlg { max-width: 640px; background: linear-gradient(160deg, #fff8e8, #ffe8a3); }
+.chapter { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; width: 100%; padding: 10px 0; }
+.ch-title { font: 700 34px var(--disp); color: var(--clay); }
+.ch-text { font: 800 20px/1.45 var(--body); }
+.chapter .btn { min-width: 220px; font-size: 22px; }
+.trophy { font-size: 90px; animation: starpop .7s; }

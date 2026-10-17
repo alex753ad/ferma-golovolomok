@@ -10,6 +10,18 @@ function fresh() {
     tasks: {},           // id -> { stars, errors, dadCalls, hintsUsed, seconds }
     cur: null,           // текущая попытка: { id, twin, errors, hint1, hint2, granny, blocked, seconds }
     grannyDay: '',       // день, когда бабушкина подсказка уже потрачена
+    grannyGiven: '',     // день, когда бабушка дала подсказку
+    items: {},           // полученная техника и т.п.: { tractor: true, ... }
+    seed: 'wheat',       // выбранные семена
+    plots: {},           // грядки: id -> { s: 'wild'|'dug'|'grow', crop, t0, water }
+    inv: {},             // урожай и товары: { wheat: 3, egg: 6 }
+    animals: {},         // coop/barn/apiary/garden -> { fedAt } или { readyAt }
+    chore: null,         // поручение мамы на сегодня
+    decor: [],           // купленные украшения
+    paint: null,         // цвет трактора
+    story: {},           // какие сюжетные сцены уже показаны
+    pieUntil: 0,
+    counters: {},        // счётчики для поручений
     unlocked: [],        // открытые зоны
     playSeconds: 0,
   };

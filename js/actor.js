@@ -5,7 +5,7 @@ import { cloneModel, gltfOf, fitHeight } from './assets.js';
 export class Actor {
   // model — имя в assets/models/chars, height — рост в метрах, hat — шапка
   constructor(model, { height = 1.7, hat } = {}) {
-    const key = 'chars/' + model;
+    const key = model.includes('/') ? model : 'chars/' + model;
     this.root = new THREE.Group();
     this.body = fitHeight(cloneModel(key), height);
     this.root.add(this.body);
@@ -17,7 +17,7 @@ export class Actor {
     this.speed = 4;
     this.onArrive = null;
     if (hat) addHat(this.body, hat);
-    this.play('idle');
+    this.play(this.actions.idle ? 'idle' : 'static');
   }
 
   play(name, fade = 0.2) {

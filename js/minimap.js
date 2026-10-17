@@ -13,7 +13,6 @@ function drawBase(ctx, s, withNames) {
   const rect = (o, c) => { ctx.fillStyle = c; ctx.fillRect(X(o.x - o.w / 2), Z(o.z - o.d / 2), o.w * s, o.d * s); };
   ctx.fillStyle = '#86c34f'; ctx.fillRect(0, 0, MW * s, MD * s);
   for (const r of ROADS) rect(r, '#ecd29b');
-  if (mapShapes.wheat) rect(mapShapes.wheat, '#e8c547');
   for (const zn of ZONES) rect(zn, ZONE_COLORS[zn.kind]);
   for (const w of mapShapes.water) {
     ctx.fillStyle = '#3d9be9'; ctx.beginPath();
@@ -50,6 +49,7 @@ function drawDynamic(ctx, s, player, markers) {
   const X = x => (x - BOUNDS.x0) * s, Z = z => (z - BOUNDS.z0) * s;
   const r = Math.max(3.5, s * 1.1);
   for (const m of markers) {
+    if (m.small) { ctx.fillStyle = m.color; ctx.beginPath(); ctx.arc(X(m.x), Z(m.z), r * 0.55, 0, 7); ctx.fill(); continue; }
     ctx.fillStyle = m.color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(X(m.x), Z(m.z), r, 0, 7); ctx.fill(); ctx.stroke();
     if (m.bang) {

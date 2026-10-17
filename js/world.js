@@ -47,7 +47,7 @@ function windy(material, amp) {
   m.customProgramCacheKey = () => 'wind' + amp;
   return m;
 }
-function makeWindy(group, amp) {
+export function makeWindy(group, amp) {
   group.traverse(o => { if (o.isInstancedMesh) { o.material = windy(o.material, amp); o.castShadow = false; } });
   return group;
 }
@@ -142,18 +142,10 @@ function smoke(x, y, z) {
 }
 
 // ---------- зоны ----------
-function dirtRows(x, z, w, d, target) {
-  flat(target, w, d, '#8b5e3c', x, z, 0.025);
-  const rows = [];
-  for (let zz = z - d / 2 + 0.6; zz < z + d / 2 - 0.3; zz += 0.85)
-    for (let xx = x - w / 2 + 0.5; xx < x + w / 2 - 0.2; xx += 1) rows.push({ x: xx, z: zz });
-  target.add(instances('nature/crops_dirtRow', rows, { scale: 1.0, shadow: false }));
-}
-
 function zoneContent(zn, inner) {
   const g = new THREE.Group();
   const { x, z, w, d } = zn;
-  if (zn.kind === 'field' || zn.kind === 'beds') dirtRows(x, z, w - 0.6, d - 0.6, g);
+  if (zn.kind === 'field' || zn.kind === 'beds') flat(g, w - 0.4, d - 0.4, '#a7b86a', x, z, 0.022); // грядки рисует farm.js
   if (zn.kind === 'coop') {
     const c = building0('#d9480f', '#7a1f1f', 3, 2.2, 1.8);
     c.position.set(x - 1, 0, z - 1); g.add(c); inner.push([x - 1, z - 1, 3.6, 2.8]);
@@ -248,13 +240,84 @@ function applyZoneNav(st) {
   for (const [x, z, w, d] of st.inner) blockRect(x, z, w + 0.6, d + 0.6);
 }
 
-export function unlockZone(id) {
+// Открыть зону. animate — забор уходит в землю, вокруг искры.
+export function unlockZone(id, animate = false) {
   const st = zoneState[id];
   if (!st || !st.locked) return;
   st.locked = false;
-  scene.remove(st.lockGroup);
   applyZoneNav(st);
+  if (!animate) { scene.remove(st.lockGroup); return; }
+  const g = st.lockGroup, zn = st.zone;
+  sparkles(zn.x, zn.z, zn.w, zn.d);
+  let k = 0;
+  const f = dt => {
+    k += dt / 1.4;
+    g.position.y = -1.6 * Math.min(1, k);
+    if (k >= 1) { scene.remove(g); animated.splice(animated.indexOf(f), 1); }
+  };
+  animated.push(f);
 }
+
+// Искры над зоной
+function sparkles(x, z, w, d) {
+  const n = 60, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3), vel = [];
+  for (let i = 0; i < n; i++) {
+    pos.set([x + rr(-w / 2, w / 2), rr(0, 1), z + rr(-d / 2, d / 2)], i * 3);
+    vel.push(rr(1, 3));
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.PointsMaterial({ color: '#ffe066', size: 0.35, transparent: true });
+  const pts = new THREE.Points(geo, m);
+  scene.add(pts);
+  let t = 0;
+  const f = dt => {
+    t += dt;
+    for (let i = 0; i < n; i++) pos[i * 3 + 1] += vel[i] * dt;
+    geo.attributes.position.needsUpdate = true;
+    m.opacity = Math.max(0, 1 - t / 2);
+    if (t > 2) { scene.remove(pts); geo.dispose(); m.dispose(); animated.splice(animated.indexOf(f), 1); }
+  };
+  animated.push(f);
+}
+
+// Салют: несколько разноцветных вспышек в небе над точкой.
+export function fireworks(x, z, seconds = 8) {
+  const colors = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2', '#ffa94d'];
+  let t = 0, next = 0;
+  const f = dt => {
+    t += dt;
+    if (t >= next && t < seconds) { burst(x + rr(-12, 12), 14 + rr(0, 8), z + rr(-10, 4), colors[(next * 7 | 0) % colors.length]); next += rr(0.3, 0.8); }
+    if (t > seconds + 3) animated.splice(animated.indexOf(f), 1);
+  };
+  animated.push(f);
+}
+function burst(x, y, z, color) {
+  const n = 70, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3), v = [];
+  for (let i = 0; i < n; i++) {
+    pos.set([x, y, z], i * 3);
+    const a = rnd() * 6.28, b = Math.acos(rr(-1, 1)), s = rr(5, 8);
+    v.push([Math.sin(b) * Math.cos(a) * s, Math.cos(b) * s, Math.sin(b) * Math.sin(a) * s]);
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.PointsMaterial({ color, size: 0.6, transparent: true, depthWrite: false, fog: false });
+  const pts = new THREE.Points(geo, m);
+  scene.add(pts);
+  let t = 0;
+  const f = dt => {
+    t += dt;
+    for (let i = 0; i < n; i++) {
+      v[i][1] -= 6 * dt;
+      pos[i * 3] += v[i][0] * dt; pos[i * 3 + 1] += v[i][1] * dt; pos[i * 3 + 2] += v[i][2] * dt;
+      v[i][0] *= 0.98; v[i][2] *= 0.98;
+    }
+    geo.attributes.position.needsUpdate = true;
+    m.opacity = Math.max(0, 1 - t / 1.8);
+    if (t > 1.8) { scene.remove(pts); geo.dispose(); m.dispose(); animated.splice(animated.indexOf(f), 1); }
+  };
+  animated.push(f);
+}
+
+export const zoneById = id => zoneState[id]?.zone;
 export const isLocked = id => zoneState[id]?.locked;
 
 // ---------- природа ----------
@@ -336,17 +399,6 @@ function trees() {
     scene.add(makeWindy(instances(k, flowers[i], { height: 0.45, shadow: false }), 0.5)));
 }
 
-// Пшеничная полоска деда у дома (колышется).
-function wheatStrip() {
-  const x = -8, z = 8, w = 9, d = 3;
-  flat(scene, w, d, '#8b5e3c', x, z, 0.025);
-  const items = [];
-  for (let xx = x - w / 2 + 0.4; xx < x + w / 2; xx += 0.55)
-    for (let zz = z - d / 2 + 0.35; zz < z + d / 2; zz += 0.55) items.push({ x: xx + rr(-0.1, 0.1), z: zz + rr(-0.1, 0.1), rot: rnd() * 6, s: rr(0.85, 1.15) });
-  scene.add(makeWindy(instances('nature/crops_wheatStageB', items, { height: 0.95 }), 0.35));
-  mapShapes.wheat = { x, z, w, d };
-}
-
 function clouds() {
   const cs = [];
   for (let i = 0; i < 7; i++) {
@@ -391,10 +443,6 @@ function props() {
   scene.add(instances('surv/barrel', [{ x: -7, z: 32 }, { x: -7.6, z: 33 }, { x: 7, z: 32.5 }], { height: 0.9 }));
   blockRect(-7.3, 32.5, 1.6, 2); blockRect(7, 32.5, 1, 1);
 
-  // трактор у гаража (пока сломан)
-  const tr = fitHeight(cloneModel('cars/tractor'), 1.9); tr.position.set(5, 0, 19); tr.rotation.y = -0.6; scene.add(tr);
-  blockRect(5, 19, 2.4, 2.6);
-  addPick(5, 19, 1.6, 2.2, { type: 'object', id: 'tractor', name: 'Трактор' });
 
   // верстак и ящики у гаража
   const wb = fitHeight(cloneModel('surv/workbench'), 1); wb.position.set(12, 0, 17.4); scene.add(wb); blockRect(12, 17.4, 1.6, 1);
@@ -443,7 +491,6 @@ export function buildWorld(sc, q) {
   }
   props();
   farmFence();
-  wheatStrip();
   trees();
   grass(q.grass);
   clouds();
@@ -453,7 +500,8 @@ export function buildWorld(sc, q) {
 
 export function updateWorld(dt, t) {
   wind.value = t;
-  for (const f of animated) f(dt, t);
+  for (const f of [...animated]) f(dt, t);
 }
+export const onFrame = f => animated.push(f);
 
 export { zoneState };

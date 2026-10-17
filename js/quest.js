@@ -4,17 +4,15 @@ import { CONFIG } from './config.js';
 import { S, save, today, hashPin, checkPin } from './save.js';
 import { face } from './portraits.js';
 import { $ } from './ui.js';
+import { open, close, isOpen, keypad, bindKeys, shake, talk, confetti, esc, T } from './dialog.js';
 
 const N = CONFIG.names;
-const veil = $('veil'), dlg = $('dlg');
-let hooks = { onChange() {}, onReward() {}, npcName: id => id };
+const dlg = $('dlg');
+let hooks = { onChange() {}, onReward() {}, onWinClosed() {}, npcName: id => id };
 
 export function initQuest(h) { hooks = { ...hooks, ...h }; }
+export { isOpen, close };
 
-// Подставить имена семьи в текст
-const fill = s => s.replace(/\{(\w+)\}/g, (m, k) => N[k] ?? m);
-const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
-const T = s => esc(fill(s));
 
 // Текущая сюжетная задача — первая нерешённая.
 export const currentTask = () => TASKS.find(t => !S.tasks[t.id]?.stars);
@@ -30,61 +28,6 @@ function starsNow(c) {
   return Math.max(1, 3 - p1 - (c.hint2 ? 1 : 0));
 }
 
-// ---------- общие куски интерфейса ----------
-function open(html, cls = '') {
-  dlg.className = 'dlg ' + cls;
-  dlg.onclick = null;
-  dlg.innerHTML = html;
-  veil.hidden = false;
-}
-export function close() { veil.hidden = true; dlg.innerHTML = ''; clearInterval(timer); }
-export const isOpen = () => !veil.hidden;
-
-function keypad(extra = '') {
-  return `<div class="ans" id="ans" aria-live="polite">?</div>
-    <div class="keys">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => `<button data-k="${k}">${k}</button>`).join('')}
-    <button data-k="del" aria-label="Стереть">⌫</button><button data-k="0">0</button>${extra}</div>`;
-}
-// Подключить клавиатуру; onEnter(строка) вызывается кнопкой «Проверить»/Enter.
-let keyHandler = null;
-function bindKeys(maxLen, onEnter, mask = false) {
-  let v = '';
-  const show = () => { $('ans').textContent = v ? (mask ? '●'.repeat(v.length) : v) : '?'; };
-  const press = k => {
-    if (k === 'del') v = v.slice(0, -1);
-    else if (k === 'ok') { if (v) { const val = v; v = ''; show(); onEnter(val); } return; }
-    else if (v.length < maxLen) v += k;
-    show();
-  };
-  dlg.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => press(b.dataset.k)));
-  removeEventListener('keydown', keyHandler);
-  keyHandler = e => {
-    if (veil.hidden) return;
-    if (/^\d$/.test(e.key)) press(e.key);
-    else if (e.key === 'Backspace') press('del');
-    else if (e.key === 'Enter') press('ok');
-  };
-  addEventListener('keydown', keyHandler);
-  return { clear() { v = ''; show(); }, press };
-}
-
-function shake() { dlg.classList.remove('shake'); void dlg.offsetWidth; dlg.classList.add('shake'); }
-
-// Реплики персонажа по очереди. Возвращает Promise.
-export function talk(id, lines, name) {
-  return new Promise(res => {
-    let i = 0;
-    const step = () => {
-      if (i >= lines.length) { close(); res(); return; }
-      open(`<div class="talk">${face(id)}<div class="talk-body"><b>${esc(name || hooks.npcName(id))}</b>
-        <div class="say">${T(lines[i])}</div></div><button class="btn g next" id="next">${i < lines.length - 1 ? 'Дальше ▶' : 'Хорошо'}</button></div>`, 'bottom');
-      $('next').onclick = e => { e.stopPropagation(); i++; step(); };
-      dlg.onclick = () => { i++; step(); };
-    };
-    step();
-  });
-}
-
 // ---------- разговор с NPC ----------
 const CHAT = {
   grandpa: ['Хозяйство — как задачка: сначала думаешь, потом делаешь.', 'Я в твои годы задачи решал на заборе. Мелом. Забор был против.'],
@@ -96,9 +39,16 @@ const CHAT = {
   baron: ['Ха-ха! К ярмарке эта ферма будет моя!', 'Я Барон Хапкин. Запомни это имя. И не перепутай с «Хапкинс».'],
 };
 
-export async function talkTo(id) {
+// Если у персонажа есть сюжетная задача — начать её. Возвращает true, если начали.
+export function tryTask(id) {
   const t = currentTask();
-  if (t && t.npc === id) {
+  if (!t || t.npc !== id || (hooks.canStart && !hooks.canStart(t))) return false;
+  startTask(id, t);
+  return true;
+}
+
+async function startTask(id, t) {
+  {
     if (S.cur?.id === t.id) {               // задача уже начата
       if (S.cur.blocked) return dadCall();
       await talk(id, ['Ну что, продолжим? Я в тебя верю!']);
@@ -109,6 +59,11 @@ export async function talkTo(id) {
     save();
     return taskScreen();
   }
+}
+
+// Просто поболтать
+export async function chat(id) {
+  const t = currentTask();
   const lines = CHAT[id] || ['Привет!'];
   const tip = t ? ` Кстати, тебя ждёт ${hooks.npcName(t.npc)} — ищи «!» на карте.` : '';
   await talk(id, [lines[Math.floor(Math.random() * lines.length)] + (id === 'baron' ? '' : tip)]);
@@ -119,7 +74,7 @@ let timer;
 function taskScreen(note = '') {
   const c = S.cur, t = TASKS.find(x => x.id === c.id), v = variant(c);
   const stars = starsNow(c);
-  const grannyOk = !c.hint1 && S.grannyDay !== today();
+  const grannyOk = !c.hint1 && S.grannyGiven === today() && S.grannyDay !== today();
   const hintBtn = !c.hint1 ? 'Подсказка −⭐' : !c.hint2 ? 'Подсказка 2 −⭐' : '';
   open(`<div class="l">
       <div class="who">${face(t.npc)}<div><b>${esc(hooks.npcName(t.npc))}</b>
@@ -147,7 +102,10 @@ function taskScreen(note = '') {
     c.hint1 = true; c.granny = true; S.grannyDay = today(); save(); taskScreen(note);
   };
   clearInterval(timer);
-  timer = setInterval(() => { c.seconds++; if (c.seconds % 10 === 0) save(); }, 1000);
+  timer = setInterval(() => {
+    if (!isOpen()) return clearInterval(timer);
+    c.seconds++; if (c.seconds % 10 === 0) save();
+  }, 1000);
 }
 
 function hintsHtml(c, v) {
@@ -188,7 +146,7 @@ function solved() {
       <div class="row"><button class="btn g" id="ok">На ферму ▶</button></div>
     </div>`, 'win-dlg');
   confetti();
-  $('ok').onclick = close;
+  $('ok').onclick = () => { close(); hooks.onWinClosed(t); };
   hooks.onReward(t);
   hooks.onChange();
 }
@@ -255,18 +213,3 @@ export function pinSetup() {
   });
 }
 
-// ---------- конфетти ----------
-function confetti() {
-  const cs = ['#ffc93c', '#e2622b', '#2f9e44', '#1c7ed6', '#e64980'];
-  for (let i = 0; i < 90; i++) {
-    const d = document.createElement('div');
-    d.className = 'cf';
-    d.style.background = cs[i % 5];
-    d.style.left = innerWidth / 2 + 'px'; d.style.top = innerHeight / 2 + 'px';
-    d.style.setProperty('--dx', (Math.random() - 0.5) * innerWidth + 'px');
-    d.style.setProperty('--dy', (Math.random() * 0.6 - 0.1) * innerHeight + 'px');
-    d.style.animationDelay = Math.random() * 0.2 + 's';
-    document.body.appendChild(d);
-    setTimeout(() => d.remove(), 2100);
-  }
-}
