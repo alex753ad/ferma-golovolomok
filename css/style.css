@@ -1,0 +1,67 @@
+/* Шрифты локально: Fredoka (цифры, латиница) + Nunito (кириллица) */
+@font-face { font-family: Fredoka; font-weight: 700; font-display: swap; src: url(../assets/fonts/fredoka-latin-700-normal.woff2) format('woff2'); }
+@font-face { font-family: Nunito; font-weight: 700; font-display: swap; src: url(../assets/fonts/nunito-cyrillic-700-normal.woff2) format('woff2'); unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: Nunito; font-weight: 700; font-display: swap; src: url(../assets/fonts/nunito-latin-700-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Nunito; font-weight: 800; font-display: swap; src: url(../assets/fonts/nunito-cyrillic-800-normal.woff2) format('woff2'); unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: Nunito; font-weight: 800; font-display: swap; src: url(../assets/fonts/nunito-latin-800-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: Nunito; font-weight: 900; font-display: swap; src: url(../assets/fonts/nunito-cyrillic-900-normal.woff2) format('woff2'); unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: Nunito; font-weight: 900; font-display: swap; src: url(../assets/fonts/nunito-latin-900-normal.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+
+:root {
+  --leaf: #2f6b2a; --sun: #ffc93c; --paper: #fff8e8; --ink: #2b2a1f; --clay: #e2622b; --ok: #2f9e44; --bad: #d6336c;
+  --disp: "Fredoka", "Nunito", system-ui, sans-serif; --body: "Nunito", system-ui, sans-serif;
+  --top: calc(env(safe-area-inset-top, 0px) + 12px);
+  --l: max(16px, env(safe-area-inset-left, 0px)); --r: max(16px, env(safe-area-inset-right, 0px));
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #86c34f; color: var(--ink); font-family: var(--body);
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+canvas.scene { position: fixed; inset: 0; display: block; }
+button { font-family: var(--disp); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:focus-visible { outline: 3px solid #1c7ed6; outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+/* Загрузка */
+.load { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: radial-gradient(circle at 50% 40%, #a6d96a, #6aa63a); color: #fff; }
+.load-title { font: 700 44px var(--disp); text-shadow: 0 3px 0 rgba(0,0,0,.2); }
+.bar { width: min(420px, 80vw); height: 22px; border-radius: 999px; background: rgba(0,0,0,.2); overflow: hidden; }
+.bar div { height: 100%; width: 0; background: var(--sun); border-radius: 999px; transition: width .2s; }
+.load-text { font: 800 18px var(--body); }
+
+/* Верхняя панель */
+.hud { position: fixed; top: var(--top); left: var(--l); display: flex; gap: 10px; flex-wrap: wrap; pointer-events: none; z-index: 5; }
+.chip { background: var(--paper); border-radius: 999px; padding: 8px 16px; font: 700 20px var(--disp); box-shadow: 0 4px 0 rgba(0,0,0,.18);
+  display: flex; gap: 8px; align-items: center; min-height: 48px; }
+.coin { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe58a, #f5b301 60%, #c98a00); box-shadow: inset 0 -2px 0 #b07800; }
+
+/* Миникарта и кнопки справа */
+.side { position: fixed; top: var(--top); right: var(--r); display: flex; flex-direction: column; align-items: flex-end; gap: 10px; z-index: 5; }
+.minimap { border-radius: 22px; border: 4px solid var(--paper); box-shadow: 0 4px 0 rgba(0,0,0,.18); background: #86c34f; }
+.side-btns { display: flex; gap: 8px; }
+.rbtn { width: 56px; height: 56px; border: 0; border-radius: 16px; background: var(--paper); font-size: 26px; box-shadow: 0 4px 0 #d8cfb6; }
+.rbtn:active { transform: translateY(3px); box-shadow: none; }
+
+/* Подсказка-тост */
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 26px); transform: translateX(-50%); z-index: 6;
+  background: rgba(43,42,31,.82); color: #fff; padding: 12px 20px; border-radius: 16px; font: 800 18px var(--body);
+  pointer-events: none; max-width: calc(100% - 32px); text-align: center; animation: pop .25s; }
+
+/* Большая карта */
+.bigmap { position: fixed; inset: 0; z-index: 20; background: rgba(30,40,20,.6); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: var(--top) var(--r) 16px var(--l); animation: pop .2s; }
+.bigmap-head { display: flex; align-items: center; gap: 16px; color: #fff; }
+.bigmap-head b { font: 700 28px var(--disp); }
+.bigmap-head span { font: 800 16px var(--body); opacity: .9; }
+#bigmapCanvas { border-radius: 20px; border: 5px solid var(--paper); box-shadow: 0 8px 0 rgba(0,0,0,.25); }
+
+/* Кольцо в точке касания */
+.ping { position: fixed; width: 44px; height: 44px; margin: -22px 0 0 -22px; border: 4px solid #fff; border-radius: 50%; pointer-events: none; z-index: 4;
+  animation: ping .5s ease-out forwards; }
+
+@keyframes pop { from { transform: translateX(var(--tx, 0)) scale(.85); opacity: 0; } to { opacity: 1; } }
+.toast { --tx: -50%; }
+@keyframes ping { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+@media (max-height: 520px) { .minimap { width: 132px !important; height: 108px !important; } }

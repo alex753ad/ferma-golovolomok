@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#86c34f">
+<title>Ферма Головоломок</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/build/three.module.min.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+</head>
+<body>
+<div class="load" id="load">
+  <div class="load-title">Ферма Головоломок</div>
+  <div class="bar"><div id="loadBar"></div></div>
+  <div class="load-text" id="loadText">Загружаю ферму… 0%</div>
+</div>
+
+<div class="hud">
+  <div class="chip"><span class="coin"></span><span id="coins">0</span></div>
+  <div class="chip">⭐ <span id="stars">0</span></div>
+  <div class="chip"><span>Задачи: <span id="solved">0</span>/20</span></div>
+</div>
+
+<div class="side">
+  <canvas id="minimap" class="minimap" aria-label="Миникарта. Нажми, чтобы открыть большую карту"></canvas>
+  <div class="side-btns">
+    <button class="rbtn" id="btnCollection" aria-label="Коллекция">🎒</button>
+    <button class="rbtn" id="btnMap" aria-label="Карта">🗺️</button>
+    <button class="rbtn" id="btnSettings" aria-label="Настройки">⚙️</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<div class="bigmap" id="bigmap" hidden>
+  <div class="bigmap-head"><b>Карта фермы</b><span>Нажми на место — Лев пойдёт туда</span><button class="rbtn" id="bigmapClose" aria-label="Закрыть">✕</button></div>
+  <canvas id="bigmapCanvas"></canvas>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
