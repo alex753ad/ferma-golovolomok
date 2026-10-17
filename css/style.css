@@ -65,3 +65,74 @@ button:focus-visible { outline: 3px solid #1c7ed6; outline-offset: 2px; }
 @keyframes ping { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
 @media (max-height: 520px) { .minimap { width: 132px !important; height: 108px !important; } }
+
+/* ---------- Диалоги и задачи ---------- */
+.veil { position: fixed; inset: 0; z-index: 30; background: rgba(30,40,20,.45); display: flex; align-items: center; justify-content: center;
+  padding: 16px var(--r) 16px var(--l); }
+.dlg { position: relative; background: var(--paper); border-radius: 24px; max-width: 900px; width: 100%; max-height: 100%; overflow: auto;
+  display: flex; flex-wrap: wrap; gap: 20px; padding: 24px; box-shadow: 0 10px 0 rgba(0,0,0,.2); animation: pop .25s; }
+.dlg.bottom { align-self: flex-end; max-width: 980px; padding: 18px 22px; margin-bottom: env(safe-area-inset-bottom, 0px); cursor: pointer; }
+.dlg .l { flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.face { width: 84px; height: 84px; border-radius: 50%; flex: none; overflow: hidden; box-shadow: inset 0 -4px 0 rgba(0,0,0,.08); }
+.face img { width: 100%; height: 100%; display: block; }
+.talk { display: flex; gap: 18px; align-items: center; width: 100%; }
+.talk-body { flex: 1; min-width: 0; }
+.talk-body b { font: 700 22px var(--disp); color: var(--clay); }
+.say { font: 800 21px/1.4 var(--body); margin-top: 4px; }
+.next { flex: none; }
+.who { display: flex; gap: 14px; align-items: center; }
+.who b { font: 700 24px var(--disp); display: block; }
+.who span { font: 800 14px var(--body); color: #7a6a4a; }
+.stars { margin-left: auto; font-size: 30px; letter-spacing: 2px; white-space: nowrap; }
+.stars i, .big-stars i { font-style: normal; color: #d8cfb6; }
+.stars i.on, .big-stars i.on { color: #f5b301; text-shadow: 0 2px 0 #b07800; }
+.q { font: 800 21px/1.45 var(--body); }
+.q.small { font-size: 18px; }
+.note { background: #d3f9d8; border-radius: 14px; padding: 10px 14px; font: 800 17px var(--body); color: #1f6f2f; }
+.hint { background: #fff1b8; border: 2px solid var(--sun); border-radius: 14px; padding: 12px 14px; font: 800 18px/1.4 var(--body); margin-bottom: 8px; }
+.hint small, .sol small { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #8a6a00; margin-bottom: 2px; }
+.sol { background: #e7f5ff; border-radius: 14px; padding: 12px 14px; font: 800 18px/1.4 var(--body); }
+.sol small { color: #1864ab; }
+.msg { font: 900 18px var(--body); color: var(--bad); min-height: 24px; }
+.pad { flex: 0 1 300px; display: flex; flex-direction: column; gap: 10px; min-width: 260px; margin: 0 auto; }
+.ans { height: 72px; border-radius: 16px; border: 3px solid var(--leaf); background: #fff; font: 700 40px var(--disp);
+  display: flex; align-items: center; justify-content: center; letter-spacing: 4px; }
+.keys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.keys button, .btn { min-height: 60px; border: 0; border-radius: 16px; background: #fff; font: 700 28px var(--disp); color: var(--ink); box-shadow: 0 4px 0 #d8cfb6; }
+.keys button:active, .btn:active { transform: translateY(3px); box-shadow: none; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row .btn { flex: 1; font-size: 18px; padding: 0 10px; white-space: nowrap; }
+.prize .coin { display: inline-block; vertical-align: -3px; }
+.btn.y, .keys .y { background: var(--sun); box-shadow: 0 4px 0 #c99a12; }
+.btn.g, .keys .g { background: var(--ok); color: #fff; box-shadow: 0 4px 0 #1f6f2f; }
+.btn.granny { background: #ffdeeb; box-shadow: 0 4px 0 #e6a3bd; }
+.x { position: absolute; top: 12px; right: 12px; width: 52px; height: 52px; border: 0; border-radius: 50%; background: #efe6cf; font-size: 24px; }
+.dlg.task .who { padding-right: 56px; }
+.dlg.boss { border: 5px solid #f5b301; }
+.shake { animation: shake .4s; }
+@keyframes shake { 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+/* Победа */
+.win-dlg { max-width: 620px; text-align: center; }
+.win { font: 700 36px var(--disp); color: var(--ok); }
+.big-stars { font-size: 64px; letter-spacing: 6px; }
+.big-stars i.on { display: inline-block; animation: starpop .5s backwards; }
+@keyframes starpop { from { transform: scale(0) rotate(-90deg); } 70% { transform: scale(1.3); } to { transform: none; } }
+.prize { background: var(--leaf); color: #fff; border-radius: 16px; padding: 14px 18px; font: 700 22px var(--disp); }
+.cf { position: fixed; width: 10px; height: 6px; pointer-events: none; z-index: 40; animation: fall 1.8s ease-in forwards; }
+@keyframes fall { to { transform: translate(var(--dx), var(--dy)) rotate(720deg); opacity: 0; } }
+
+/* Звонок папе */
+.phone-dlg { max-width: 430px; justify-content: center; background: linear-gradient(#2b3a55, #1d2a40); color: #fff; border-radius: 36px; }
+.phone { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; text-align: center; }
+.phone-top { font: 800 17px var(--body); opacity: .85; animation: blink 1.2s infinite; }
+.phone .face { width: 120px; height: 120px; box-shadow: 0 0 0 6px rgba(255,255,255,.15), 0 0 0 14px rgba(255,255,255,.07); animation: ring 1.2s infinite; }
+.phone-name { font: 700 28px var(--disp); }
+.phone-text { font: 800 18px/1.4 var(--body); }
+.phone-pin { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.phone-label { font: 800 15px var(--body); opacity: .85; }
+.phone .ans { color: var(--ink); }
+.phone #later { font-size: 18px; width: 100%; max-width: 300px; background: rgba(255,255,255,.15); color: #fff; box-shadow: none; }
+@keyframes blink { 50% { opacity: .4; } }
+@keyframes ring { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(-6deg); } 20% { transform: rotate(6deg); } 30% { transform: rotate(0); } }
+@media (max-height: 640px) { .phone .face { width: 80px; height: 80px; } .phone-text { font-size: 15px; } .keys button, .btn { min-height: 52px; } .ans { height: 58px; } }

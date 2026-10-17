@@ -104,6 +104,12 @@ function addHat(body, kind) {
     const net = new THREE.MeshLambertMaterial({ color: '#495057', transparent: true, opacity: 0.3, side: THREE.DoubleSide });
     g.add(cyl(0.4, 0.02, '#f1f3f5'), cyl(0.23, 0.16, '#f1f3f5', 0.08), cyl(0.36, 0.3, net, -0.15, true));
     g.position.y = 0.32;
+  } else if (kind === 'dad') {
+    // усы — чтобы папа отличался от Льва
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 0.03), hatMat('#4a2f1b'));
+    m.position.set(0, -0.245, 0.175);
+    g.add(m);
+    g.position.y = 0.3;
   } else if (kind === 'top') {
     g.add(cyl(0.32, 0.02, '#212529'), cyl(0.2, 0.34, '#212529', 0.17), cyl(0.205, 0.06, '#7048e8', 0.04));
     g.position.y = 0.31;

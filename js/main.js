@@ -9,6 +9,9 @@ import { Actor } from './actor.js';
 import { CameraRig } from './controls.js';
 import { Minimap } from './minimap.js';
 import { $, toast, makeLabel } from './ui.js';
+import { S, save } from './save.js';
+import { makePortraits } from './portraits.js';
+import { initQuest, talkTo, npcWithTask, solvedCount, pinSetup, isOpen } from './quest.js';
 
 const params = new URLSearchParams(location.search);
 const qualityName = params.get('q') === 'eco' ? 'economy' : 'high';
@@ -40,6 +43,18 @@ await loadAll(p => {
 });
 buildWorld(scene, Q);
 if (params.get('open') === 'all') ZONES.forEach(z => unlockZone(z.id)); // для проверки: ?open=all
+S.unlocked.forEach(unlockZone);
+
+// Имя персонажа: для семьи — из настроек
+const npcName = id => CONFIG.names[id] || NPCS.find(n => n.id === id)?.name || id;
+
+// Портреты для диалогов
+makePortraits({
+  ...Object.fromEntries(NPCS.map(n => [n.id, { model: n.model, hat: n.hat }])),
+  dad: { model: 'character-male-f', hat: 'dad' },
+  grandma: { model: 'character-female-c' },
+  lev: { model: 'character-male-f', hat: 'cap' },
+});
 
 // ---------- персонажи ----------
 const lev = new Actor('character-male-f', { hat: 'cap' });
@@ -53,9 +68,14 @@ const npcs = NPCS.map(n => {
   a.root.position.set(n.x, 0, n.z);
   a.root.rotation.y = n.rot;
   a.data = n;
-  const tag = makeLabel([[n.name, '800 24px Nunito, sans-serif']], n.name.length * 13 + 36, 40, '#ffffff', '#2b2a1f', 0.014);
+  const name = npcName(n.id);
+  const tag = makeLabel([[name, '800 24px Nunito, sans-serif']], name.length * 13 + 36, 40, '#ffffff', '#2b2a1f', 0.014);
   tag.position.y = 2.5;
   a.root.add(tag);
+  // «!» над тем, у кого есть задача
+  a.bang = makeLabel([['!', '700 56px Fredoka, sans-serif']], 64, 64, '#ffc93c', '#2b2a1f', 0.012);
+  a.bang.position.y = 3.1;
+  a.root.add(a.bang);
   scene.add(a.root);
   addPick(n.x, n.z, 0.9, 2, { type: 'npc', id: n.id, actor: a });
   blockCircle(n.x, n.z, 0.55);
@@ -83,6 +103,7 @@ function goTo(x, z, stop = 0, onArrive) {
 }
 
 function onTap(cx, cy) {
+  if (isOpen()) return;
   ndc.set(cx / innerWidth * 2 - 1, -cy / innerHeight * 2 + 1);
   ray.setFromCamera(ndc, camera);
   const hit = ray.intersectObjects(pickables, false)[0];
@@ -93,7 +114,7 @@ function onTap(cx, cy) {
         lev.lookAt(o.x, o.z);
         u.actor.lookAt(lev.root.position.x, lev.root.position.z);
         u.actor.once('emote-yes');
-        toast(`${u.actor.data.name}: «Привет, ${CONFIG.names.lev}!»`); // диалоги — на этапе 2
+        talkTo(u.id);
       });
       return;
     }
@@ -109,10 +130,28 @@ rig.snap(lev.root.position);
 const minimap = new Minimap(
   () => ({
     player: { x: lev.root.position.x, z: lev.root.position.z, rot: lev.root.rotation.y },
-    markers: npcs.map(a => ({ x: a.root.position.x, z: a.root.position.z, color: NPC_COLORS[a.data.id], bang: false })),
+    markers: npcs.map(a => ({ x: a.root.position.x, z: a.root.position.z, color: NPC_COLORS[a.data.id], bang: a.data.id === npcWithTask() })),
   }),
   (x, z) => goTo(x, z),
 );
+
+// ---------- задачи ----------
+function refresh() {
+  $('coins').textContent = S.coins;
+  $('stars').textContent = S.stars;
+  $('solved').textContent = solvedCount();
+  const who = npcWithTask();
+  for (const a of npcs) a.bang.visible = a.data.id === who;
+}
+initQuest({
+  npcName,
+  onChange: refresh,
+  onReward(t) {
+    if (t.reward.zone) { unlockZone(t.reward.zone); minimap.invalidate(); }
+  },
+});
+refresh();
+setInterval(save, 30000); // время в игре и прочее — раз в полминуты
 
 $('btnCollection').onclick = () => toast('Коллекция появится на этапе 4');
 $('btnSettings').onclick = () => toast('Настройки появятся на этапе 5');
@@ -124,8 +163,9 @@ let playTime = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
   playTime += dt;
+  if (!document.hidden) S.playSeconds += dt;
   lev.update(dt);
-  for (const a of npcs) a.update(dt);
+  for (const a of npcs) { a.update(dt); a.bang.position.y = 3.1 + Math.abs(Math.sin(t * 3)) * 0.25; }
   rig.update(dt, lev.root.position);
   followSun(lev.root.position.x, lev.root.position.z);
   setDayPhase(dayOverride ?? playTime / 3600);
@@ -134,6 +174,7 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-window.game = { rig, lev, npcs, camera, scene, renderer }; // для отладки из консоли
+window.game = { rig, lev, npcs, camera, scene, renderer, talkTo, S: () => S }; // для отладки из консоли
 $('load').remove();
+if (!S.pinHash) await pinSetup();
 toast('Нажми на землю — Лев пойдёт туда. Тяни пальцем — поверни камеру.', 4500);
