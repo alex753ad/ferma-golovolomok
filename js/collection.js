@@ -11,7 +11,7 @@ const solved = id => !!S.tasks[id]?.stars;
 const chapterTasks = i => TASKS.filter(t => t.id > i * 5 && t.id <= i * 5 + 5);
 
 // ---------- значки ----------
-const BADGES = [
+export const BADGES = [
   { id: 'harvest', icon: '🌾', name: 'Первый урожай',        how: 'Собери урожай',                 ok: () => (S.counters.harvest || 0) >= 1 },
   { id: 'boss',    icon: '🏅', name: 'Победитель босса',     how: 'Реши задачу-босса',             ok: () => solved(5) },
   { id: 'clean5',  icon: '🧠', name: 'Без подсказок ×5',     how: '5 задач подряд с первой попытки без подсказок', ok: () => (S.counters.cleanBest || 0) >= 5 },

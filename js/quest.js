@@ -1,10 +1,10 @@
-// Задачи: диалоги NPC, экран задачи, правило попыток, звонок папе (PIN), близнецы, звёзды.
+// Задачи: диалоги NPC, экран задачи, правило попыток, «зови папу», близнецы, звёзды, PIN входа.
 import { TASKS, COINS_BY_STARS } from '../data/tasks.js';
 import { CONFIG } from './config.js';
-import { S, save, today, hashPin, checkPin } from './save.js';
+import { S, save, today, checkPin } from './save.js';
 import { face } from './portraits.js';
 import { $, emit } from './ui.js';
-import { sfx, ring, setTheme } from './audio.js';
+import { sfx, setTheme } from './audio.js';
 import { open, close, isOpen, keypad, bindKeys, shake, talk, confetti, esc, T } from './dialog.js';
 
 const N = CONFIG.names;
@@ -157,40 +157,20 @@ function solved() {
   hooks.onChange();
 }
 
-// ---------- звонок папе ----------
+// ---------- зови папу ----------
+// После двух ошибок: никаких блокировок — подсказки, а потом похожая задача.
 function dadCall() {
   clearInterval(timer);
-  ring(true);
-  open(`<div class="phone">
-      <div class="phone-top">📞 Звоним папе…</div>
-      ${face('dad', '#c5f6fa')}
-      <b class="phone-name">${esc(N.dad)}</b>
-      <div class="phone-text">Даже лучшие фермеры зовут подмогу!<br>Покажи папе задачу — вместе разберётесь.</div>
-      <div class="phone-pin">
-        <div class="phone-label">Папа, введи PIN:</div>
-        ${keypad('<button data-k="ok" class="g" aria-label="Готово">✓</button>')}
-      </div>
-      <button class="btn" id="later">Позвоню позже</button>
-    </div>`, 'phone-dlg');
-  hooks.onChange();
-  bindKeys(4, pin => {
-    if (!checkPin(pin)) { shake(); return; }
-    ring(false);
-    dadExplain();
-  }, true);
-  $('later').onclick = () => { ring(false); close(); };
-}
-
-// После PIN: решение для папы, потом — задача-близнец.
-function dadExplain() {
   const c = S.cur, v = variant(c);
   open(`<div class="l">
-      <div class="who">${face('dad', '#c5f6fa')}<div><b>Для папы</b><span>Объясните идею, потом Лев решит похожую задачу сам</span></div></div>
+      <div class="who">${face('dad', '#c5f6fa')}<div><b>📞 Зови папу — он поможет!</b><span>Даже лучшие фермеры зовут подмогу. Разберитесь вместе, а потом реши похожую задачу сам.</span></div></div>
       <div class="q small">${T(v.q)}</div>
-      <div class="sol"><small>Ответ: ${v.a}</small>${T(v.sol)}</div>
       <div class="hint"><small>Подсказки</small>${T(v.hints[0])}<br>${T(v.hints[1])}</div>
-      <div class="row"><button class="btn g" id="go">Объяснил — дать похожую задачу ▶</button></div>
-    </div>`);
+      <div class="row"><button class="btn g" id="go">Разобрались — дать похожую задачу ▶</button></div>
+    </div>
+    <button class="x" id="x" aria-label="Закрыть">✕</button>`);
+  hooks.onChange();
+  $('x').onclick = close;
   $('go').onclick = () => {
     Object.assign(c, { twin: c.twin + 1, errors: 0, hint1: false, hint2: false, granny: false, blocked: false, dad: true });
     save();
@@ -199,25 +179,18 @@ function dadExplain() {
   };
 }
 
-// ---------- PIN при первом запуске ----------
-export function pinSetup() {
+// ---------- PIN при входе (один раз на устройстве) ----------
+export function pinGate() {
   return new Promise(res => {
-    let first = '';
-    const ask = (title, text) => {
-      open(`<div class="l pin-box">
-          <div class="win" style="color:var(--ink)">${title}</div>
-          <div class="q small">${text}</div>
-          <div class="msg" id="msg"></div>
-        </div>
-        <div class="pad">${keypad('<button data-k="ok" class="g" aria-label="Готово">✓</button>')}</div>`);
-      bindKeys(4, pin => {
-        if (pin.length !== 4) { $('msg').textContent = 'Нужно ровно 4 цифры.'; shake(); return; }
-        if (!first) { first = pin; ask('Повторите PIN', 'Введите тот же PIN ещё раз.'); return; }
-        if (pin !== first) { first = ''; ask('Не совпало', 'Придумайте PIN заново.'); shake(); return; }
-        S.pinHash = hashPin(pin); save(); close(); res();
-      }, true);
-    };
-    ask('Привет, родитель! 👋', `Придумайте PIN из 4 цифр. Он понадобится, когда ${esc(N.lev)} позовёт на помощь с трудной задачей. Ребёнку его не показывайте.`);
+    open(`<div class="l pin-box">
+        <div class="win" style="color:var(--ink)">Ферма Головоломок 🔒</div>
+        <div class="q small">Введите PIN, чтобы войти в игру.</div>
+        <div class="msg" id="msg"></div>
+      </div>
+      <div class="pad">${keypad('<button data-k="ok" class="g" aria-label="Готово">✓</button>')}</div>`);
+    bindKeys(4, pin => {
+      if (!checkPin(pin)) { $('msg').textContent = 'Неверный PIN'; shake(); return; }
+      S.pinHash = CONFIG.pinHash; save(); close(); res();
+    }, true);
   });
 }
-

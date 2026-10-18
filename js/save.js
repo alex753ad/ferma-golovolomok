@@ -1,4 +1,6 @@
 // Сохранение прогресса: localStorage + «код сохранения» для переноса на другое устройство.
+import { CONFIG } from './config.js';
+
 const KEY = 'ferma-golovolomok-v1';
 
 function fresh() {
@@ -6,7 +8,7 @@ function fresh() {
     v: 1,
     coins: 0,
     stars: 0,
-    pinHash: null,       // хэш родительского PIN
+    pinHash: null,       // хэш PIN, если на этом устройстве уже входили
     tasks: {},           // id -> { stars, errors, dadCalls, hintsUsed, seconds }
     cur: null,           // текущая попытка: { id, twin, errors, hint1, hint2, granny, blocked, seconds }
     grannyDay: '',       // день, когда бабушкина подсказка уже потрачена
@@ -71,7 +73,7 @@ export function hashPin(pin) {
   for (const c of 'ферма:' + pin) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
   return h.toString(36);
 }
-export const checkPin = pin => S.pinHash === hashPin(pin);
+export const checkPin = (pin, hash = CONFIG.pinHash) => hashPin(pin) === hash;
 
 // ---------- код сохранения ----------
 // Формат: FG1-<base64url(deflate(JSON))>-<контрольная сумма>. Сжатие — встроенное в браузер

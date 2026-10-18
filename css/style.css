@@ -123,19 +123,8 @@ button:focus-visible { outline: 3px solid #1c7ed6; outline-offset: 2px; }
 @keyframes fall { to { transform: translate(var(--dx), var(--dy)) rotate(720deg); opacity: 0; } }
 
 /* Звонок папе */
-.phone-dlg { max-width: 430px; justify-content: center; background: linear-gradient(#2b3a55, #1d2a40); color: #fff; border-radius: 36px; }
-.phone { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; text-align: center; }
-.phone-top { font: 800 17px var(--body); opacity: .85; animation: blink 1.2s infinite; }
-.phone .face { width: 120px; height: 120px; box-shadow: 0 0 0 6px rgba(255,255,255,.15), 0 0 0 14px rgba(255,255,255,.07); animation: ring 1.2s infinite; }
-.phone-name { font: 700 28px var(--disp); }
-.phone-text { font: 800 18px/1.4 var(--body); }
-.phone-pin { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
-.phone-label { font: 800 15px var(--body); opacity: .85; }
-.phone .ans { color: var(--ink); }
-.phone #later { font-size: 18px; width: 100%; max-width: 300px; background: rgba(255,255,255,.15); color: #fff; box-shadow: none; }
 @keyframes blink { 50% { opacity: .4; } }
-@keyframes ring { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(-6deg); } 20% { transform: rotate(6deg); } 30% { transform: rotate(0); } }
-@media (max-height: 640px) { .phone .face { width: 80px; height: 80px; } .phone-text { font-size: 15px; } .keys button, .btn { min-height: 52px; } .ans { height: 58px; } }
+@media (max-height: 640px) { .keys button, .btn { min-height: 52px; } .ans { height: 58px; } }
 .fl { position: fixed; z-index: 8; font: 700 26px var(--disp); color: #fff; -webkit-text-stroke: 1.5px #8a5a00; pointer-events: none; animation: up 1s forwards; white-space: nowrap; }
 @keyframes up { to { transform: translateY(-60px); opacity: 0; } }
 

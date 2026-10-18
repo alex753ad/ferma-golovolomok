@@ -1,13 +1,30 @@
-// Родительский режим (по PIN): прогресс, лимиты, призы, своя задача, код сохранения, PIN, сброс.
+// Раздел для папы (по PIN): прогресс и трудности, лимиты, призы, своя задача, код сохранения, сброс.
 import { TASKS } from '../data/tasks.js';
 import { CONFIG } from './config.js';
-import { S, save, hashPin, exportCode, importCode, resetAll } from './save.js';
+import { S, save, exportCode, importCode, resetAll } from './save.js';
 import { D, addMinutes } from './day.js';
-import { open, close, keypad, bindKeys, shake, esc } from './dialog.js';
+import { BADGES } from './collection.js';
+import { open, close, esc } from './dialog.js';
 import { $, toast } from './ui.js';
 
 const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const hhmm = s => `${Math.floor(s / 3600)} ч ${Math.floor(s / 60) % 60} мин`;
+
+// Где трудно, где легко, достижения — коротко над таблицей
+function insights() {
+  const done = TASKS.filter(t => S.tasks[t.id]?.stars).map(t => ({ t, r: S.tasks[t.id] }));
+  const hardness = r => r.errors + r.hintsUsed + r.dadCalls * 2;
+  const line = ({ t, r }) => `<div class="li"><span>№${t.id}: ${esc(t.q.slice(0, 70))}…<small>ошибок ${r.errors}, подсказок ${r.hintsUsed}${r.dadCalls ? `, звал папу ${r.dadCalls}` : ''}, время ${mmss(r.seconds)}</small></span></div>`;
+  const hard = done.filter(d => hardness(d.r) > 0).sort((a, b) => hardness(b.r) - hardness(a.r) || b.r.seconds - a.r.seconds).slice(0, 3);
+  const easy = done.filter(d => !hardness(d.r)).sort((a, b) => a.r.seconds - b.r.seconds).slice(0, 3);
+  const avg = done.length ? mmss(done.reduce((s, d) => s + d.r.seconds, 0) / done.length) : '—';
+  const badges = BADGES.filter(b => S.badges[b.id]);
+  return `<div class="muted">Среднее время на задачу: ${avg}</div>
+    <b>😓 Где было трудно</b><div class="list">${hard.map(line).join('') || '<div class="muted">Пока трудностей не было.</div>'}</div>
+    <b>⚡ Решил быстро и сразу</b><div class="list">${easy.map(line).join('') || '<div class="muted">Пока нет задач без ошибок и подсказок.</div>'}</div>
+    <b>🏅 Достижения: ${badges.length} из ${BADGES.length}</b>
+    <div class="muted">${badges.map(b => `${b.icon} ${esc(b.name)}`).join(' · ') || 'Пока нет'}</div>`;
+}
 
 export function parentScreen(tab = 'progress') {
   let body = '';
@@ -15,7 +32,7 @@ export function parentScreen(tab = 'progress') {
     const rows = TASKS.map(t => {
       const r = S.tasks[t.id], cur = S.cur?.id === t.id ? S.cur : null;
       if (!r && !cur) return `<tr class="dim"><td>${t.id}</td><td colspan="6">${t.id === (S.cur?.id) ? '' : 'ещё не начата'}</td></tr>`;
-      if (!r) return `<tr><td>${t.id}</td><td>в работе${cur.blocked ? ' · <b>ждёт папу</b>' : ''}</td><td>${cur.totalErrors}</td><td>${cur.dadCalls}</td><td>${cur.hintsUsed}</td><td>${mmss(cur.seconds)}</td><td></td></tr>`;
+      if (!r) return `<tr><td>${t.id}</td><td>в работе${cur.blocked ? ' · <b>зовёт папу</b>' : ''}</td><td>${cur.totalErrors}</td><td>${cur.dadCalls}</td><td>${cur.hintsUsed}</td><td>${mmss(cur.seconds)}</td><td></td></tr>`;
       return `<tr><td>${t.id}${t.boss ? ' 🏆' : ''}</td><td>${'★'.repeat(r.stars)}</td><td>${r.errors}</td><td>${r.dadCalls ? '📞 ' + r.dadCalls : '—'}</td><td>${r.hintsUsed}</td><td>${mmss(r.seconds)}</td><td>${r.date || ''}</td></tr>`;
     }).join('');
     const done = Object.values(S.tasks).filter(r => r.stars);
@@ -24,6 +41,7 @@ export function parentScreen(tab = 'progress') {
         <div><b>${done.length}/20</b>задач</div><div><b>${S.stars}</b>звёзд</div><div><b>${sum('errors')}</b>ошибок</div>
         <div><b>${sum('dadCalls')}</b>звонков папе</div><div><b>${hhmm(S.playSeconds)}</b>всего в игре</div><div><b>${hhmm(D().sec)}</b>сегодня</div>
         <div><b>${S.streak.count}</b>дней подряд</div><div><b>${S.counters.daily || 0}</b>задач дня</div></div>
+      ${insights()}
       <table class="tbl"><tr><th>№</th><th>Звёзды</th><th>Ошибки</th><th>Папа</th><th>Подск.</th><th>Время</th><th>Дата</th></tr>${rows}</table>`;
   }
   if (tab === 'limits') {
@@ -32,9 +50,8 @@ export function parentScreen(tab = 'progress') {
       <div class="li"><span>Сюжетных задач в день</span><span class="step"><button class="btn sm" id="tm">−</button><b>${p.tasksPerDay}</b><button class="btn sm" id="tp">+</button></span></div>
       <div class="li"><span>Минут игры в день<small>0 — без лимита</small></span><span class="step"><button class="btn sm" id="mm">−</button><b>${p.minutes}</b><button class="btn sm" id="mp">+</button></span></div>
       <div class="li"><span>Сегодня: сыграно ${mmss(D().sec)}${D().bonus ? `, добавлено ${D().bonus} мин` : ''}, решено ${D().solved}</span><button class="btn y sm" id="more">+15 минут сегодня</button></div>
-      <div class="li"><span>PIN родителя</span><button class="btn sm" id="pin">Сменить PIN</button></div>
       <div class="li"><span>Имена семьи и время роста урожая<small>меняются в файле js/config.js</small></span></div>
-      <div class="li danger"><span>Сбросить весь прогресс<small>PIN и настройки останутся</small></span><button class="btn sm" id="reset">Сбросить…</button></div>
+      <div class="li danger"><span>Сбросить весь прогресс<small>настройки останутся</small></span><button class="btn sm" id="reset">Сбросить…</button></div>
     </div>`;
   }
   if (tab === 'prizes') {
@@ -61,7 +78,7 @@ export function parentScreen(tab = 'progress') {
   }
   const tabs = [['progress', 'Прогресс'], ['limits', 'Лимиты'], ['prizes', 'Призы'], ['letter', 'Своя задача'], ['save', 'Сохранение']];
   open(`<div class="l">
-      <div class="who"><div class="face" style="background:#c5f6fa;display:flex;align-items:center;justify-content:center;font-size:44px">👨</div><div><b>Для родителей</b><span>Здесь всё видно и всё настраивается</span></div></div>
+      <div class="who"><div class="face" style="background:#c5f6fa;display:flex;align-items:center;justify-content:center;font-size:44px">👨</div><div><b>Для папы</b><span>Достижения, трудности и настройки</span></div></div>
       <div class="tabs">${tabs.map(([id, n]) => `<button class="tab ${tab === id ? 'on' : ''}" data-tab="${id}">${n}</button>`).join('')}</div>
       ${body}
     </div><button class="x" id="x" aria-label="Закрыть">✕</button>`, 'market parent');
@@ -79,7 +96,6 @@ function wire(tab) {
     $('mm').onclick = () => { p.minutes = steps[Math.max(0, steps.indexOf(p.minutes) - 1)] ?? 60; re(); };
     $('mp').onclick = () => { p.minutes = steps[Math.min(steps.length - 1, steps.indexOf(p.minutes) + 1)] ?? 60; re(); };
     $('more').onclick = () => { addMinutes(15); toast('Добавлено 15 минут на сегодня'); };
-    $('pin').onclick = changePin;
     $('reset').onclick = () => {
       if (!confirm('Точно сбросить весь прогресс? Это нельзя отменить.')) return;
       resetAll(); location.reload();
@@ -110,21 +126,4 @@ function wire(tab) {
       else toast('Код не подошёл — проверьте, что он скопирован целиком');
     };
   }
-}
-
-function changePin() {
-  let first = '';
-  const ask = title => {
-    open(`<div class="l pin-box"><div class="win" style="color:var(--ink)">${title}</div><div class="msg" id="msg"></div>
-      <button class="btn" id="back">Назад</button></div>
-      <div class="pad">${keypad('<button data-k="ok" class="g" aria-label="Готово">✓</button>')}</div>`);
-    $('back').onclick = () => parentScreen('limits');
-    bindKeys(4, pin => {
-      if (pin.length !== 4) { shake(); return; }
-      if (!first) { first = pin; ask('Повторите новый PIN'); return; }
-      if (pin !== first) { first = ''; ask('Не совпало. Новый PIN'); shake(); return; }
-      S.pinHash = hashPin(pin); save(); toast('PIN изменён'); parentScreen('limits');
-    }, true);
-  };
-  ask('Новый PIN');
 }

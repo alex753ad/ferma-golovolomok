@@ -61,16 +61,6 @@ export const buzz = () => tone('sawtooth', 220, 230, 0.6, 0.05, 0, 900);
 export const splash = () => { for (let i = 0; i < 5; i++) tone('triangle', 1400 + Math.random() * 800, 300, 0.15, 0.06, i * 0.04); };
 export const meow = () => { tone('triangle', 700, 1100, 0.18, 0.12); tone('triangle', 1100, 600, 0.3, 0.12, 0.18); };
 
-// Телефон папы: трель, пока не остановят
-let ringTimer;
-export function ring(on) {
-  clearInterval(ringTimer);
-  if (!on) return;
-  const r = () => { for (let i = 0; i < 8; i++) tone('sine', i % 2 ? 1300 : 1600, i % 2 ? 1300 : 1600, 0.06, 0.12, i * 0.07); };
-  r(); ringTimer = setInterval(r, 1600);
-  setTimeout(() => clearInterval(ringTimer), 12000);
-}
-
 // Мотор техники
 let engine;
 export function motor(on) {

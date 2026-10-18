@@ -4,7 +4,7 @@ import { CONFIG } from './config.js';
 import { TEASERS } from '../data/story.js';
 import { open, close, isOpen, talk, keypad, bindKeys, shake, T, esc } from './dialog.js';
 import { face } from './portraits.js';
-import { $, toast, emit } from './ui.js';
+import { $, emit } from './ui.js';
 
 let hooks;
 export function initDay(h) { hooks = h; D(); }
@@ -76,7 +76,6 @@ export function evening() {
         <div class="say">Всё, ужинать! ${T('{cat}')} уже спит на крылечке 😴 Приходи завтра.</div></div></div>
       <div class="note">Завтра: ${T(teaser)}</div>
       <div class="ev-timer">Новый день через <b id="evT"></b></div>
-      <button class="link" id="more">Для родителей: ещё 15 минут</button>
     </div>`, 'chapter-dlg ev-dlg');
   const tick = () => {
     const now = new Date(), mid = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
@@ -87,7 +86,6 @@ export function evening() {
   tick();
   clearInterval(timer);
   timer = setInterval(tick, 1000);
-  $('more').onclick = () => askPin(() => { addMinutes(15); toast('Ещё 15 минут! Мама разрешила.'); });
 }
 
 export function addMinutes(m) {
@@ -96,12 +94,12 @@ export function addMinutes(m) {
   save(); clearInterval(timer); close();
 }
 
-// Запросить PIN, потом вызвать ok()
-export function askPin(ok, title = 'PIN родителя') {
+// Запросить PIN папы, потом вызвать ok()
+export function askPin(ok, title = 'PIN папы') {
   open(`<div class="l pin-box"><div class="win" style="color:var(--ink)">${title}</div><div class="msg" id="msg"></div>
     <button class="btn" id="back">Назад</button></div>
     <div class="pad">${keypad('<button data-k="ok" class="g" aria-label="Готово">✓</button>')}</div>`);
   const was = D().ended;
-  bindKeys(4, pin => { if (checkPin(pin)) { close(); ok(); } else { shake(); $('msg').textContent = 'Неверный PIN'; } }, true);
+  bindKeys(4, pin => { if (checkPin(pin, CONFIG.dadPinHash)) { close(); ok(); } else { shake(); $('msg').textContent = 'Неверный PIN'; } }, true);
   $('back').onclick = () => { close(); if (was && D().ended) evening(); };
 }

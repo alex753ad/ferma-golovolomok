@@ -10,6 +10,10 @@ export const CONFIG = {
     cat: 'Сима',
   },
 
+  // PIN-коды хэшем (см. hashPin в save.js): вход в игру и раздел «Для папы»
+  pinHash: 'mrjqze',
+  dadPinHash: '1p26a74',
+
   // Время роста урожая, минуты (полив ускоряет в waterBoost раз)
   growMinutes: { wheat: 3, carrot: 5, sunflower: 15, greenhouse: 30 },
   waterBoost: 2,

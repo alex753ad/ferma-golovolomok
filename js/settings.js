@@ -16,7 +16,7 @@ export function settingsScreen() {
         <div class="li"><span>🔇 Без звука</span><button class="btn sm ${s.mute ? 'g' : ''}" id="mute">${s.mute ? 'Включено' : 'Выключено'}</button></div>
         <div class="li"><span>🖼️ Качество графики<small>${s.quality === 'high' ? 'тени, много травы, сглаживание' : 'быстрее и меньше греет планшет'}</small></span>
           <span class="step"><button class="btn sm ${s.quality === 'high' ? 'y' : ''}" data-q="high">Высокое</button><button class="btn sm ${s.quality === 'economy' ? 'y' : ''}" data-q="economy">Экономное</button></span></div>
-        <div class="li"><span>👨 Для родителей<small>прогресс, лимиты, призы, PIN</small></span><button class="btn sm" id="parent">Войти по PIN</button></div>
+        <div class="li"><span>👨 Для папы<small>прогресс, трудности, лимиты, призы</small></span><button class="btn sm" id="parent">Войти по PIN</button></div>
       </div>
     </div><button class="x" id="x" aria-label="Закрыть">✕</button>`, 'market');
   $('x').onclick = close;

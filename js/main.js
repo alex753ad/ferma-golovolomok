@@ -14,7 +14,7 @@ import { $, toast, makeLabel, setCamera, emit, on } from './ui.js';
 import { S, save } from './save.js';
 import { makePortraits } from './portraits.js';
 import { setNameResolver, isOpen, talk } from './dialog.js';
-import { initQuest, tryTask, chat, npcWithTask, currentTask, solvedCount, pinSetup } from './quest.js';
+import { initQuest, tryTask, chat, npcWithTask, currentTask, solvedCount, pinGate } from './quest.js';
 import { initFarm, plotAt, actPlot, actPen, actMachine, grantItem, marketScreen, onZoneOpened, farmMarkers } from './farm.js';
 import { initFamily, momTalk, momHasNews, grannyTalk, grannyPlace, grannyHasNews, choreGoal } from './family.js';
 import { initStory, prologue, afterWin } from './story.js';
@@ -351,7 +351,7 @@ if ('serviceWorker' in navigator && (!/^(localhost|127\.)/.test(location.hostnam
 
 window.game = { rig, lev, npcs, camera, scene, renderer, npcTalk, S: () => S, D }; // для отладки из консоли
 $('load').remove();
-if (!S.pinHash) await pinSetup();
+if (S.pinHash !== CONFIG.pinHash) await pinGate();
 if (isEnded()) evening();
 else {
   await prologue();
