@@ -31,6 +31,15 @@ function progress(id) {
   if (choreDone(ch)) { toast(`Поручение мамы выполнено! Зайди к ней за наградой 🥧`); hooks.onChange(); }
 }
 
+// Куда идти по поручению — для значка над целью и на миникарте. where: id зоны или персонажа.
+const CHORE_GOAL = { harvest: ['🌾', 'beds'], plant: ['🌱', 'beds'], water: ['💧', 'beds'], feed: ['🐔', 'coop'], eggs: ['🥚', 'coop'], sell: ['💰', 'valya'] };
+export function choreGoal() {
+  const ch = todayChore();
+  if (!ch.seen || ch.claimed || choreDone(ch)) return null;
+  const [icon, where] = CHORE_GOAL[ch.id];
+  return { icon, where: where === 'beds' && isLocked('beds') ? 'strip' : where };
+}
+
 // Мама ждёт: есть новое поручение или награда.
 export const momHasNews = () => { const ch = todayChore(); return !ch.claimed && (choreDone(ch) || !ch.seen); };
 

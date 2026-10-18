@@ -1,13 +1,15 @@
 // Персонаж: модель со скелетом, анимации, ходьба по пути.
 import * as THREE from 'three';
 import { cloneModel, gltfOf, fitHeight } from './assets.js';
+import { applyLook } from './looks.js';
 
 export class Actor {
-  // model — имя в assets/models/chars, height — рост в метрах, hat — шапка
-  constructor(model, { height = 1.7, hat } = {}) {
+  // model — имя в assets/models/chars, height — рост в метрах, hat — шапка, look — внешность из looks.js
+  constructor(model, { height = 1.7, hat, look } = {}) {
     const key = model.includes('/') ? model : 'chars/' + model;
     this.root = new THREE.Group();
     this.body = fitHeight(cloneModel(key), height);
+    if (look) applyLook(this.body, look);
     this.root.add(this.body);
     this.mixer = new THREE.AnimationMixer(this.body);
     this.actions = {};
@@ -93,12 +95,13 @@ function addHat(body, kind) {
     m.position.y = y;
     return m;
   };
-  if (kind === 'cap') {
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), hatMat('#1971c2'));
+  if (kind === 'cap' || kind === 'capBrown') {
+    const brown = kind === 'capBrown';
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), hatMat(brown ? '#7a5230' : '#1971c2'));
     dome.scale.set(0.96, 0.42, 0.78);
-    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.025, 0.16), hatMat('#1864ab'));
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.025, 0.16), hatMat(brown ? '#5e3e22' : '#1864ab'));
     visor.position.set(0, 0.01, 0.25);
-    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), hatMat('#ffd43b'));
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), hatMat(brown ? '#5e3e22' : '#ffd43b'));
     btn.position.y = 0.125;
     g.add(dome, visor, btn);
     g.position.y = 0.3;

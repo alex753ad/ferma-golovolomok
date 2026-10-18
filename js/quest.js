@@ -86,6 +86,7 @@ function taskScreen(note = '') {
       ${note ? `<div class="note">${T(note)}</div>` : ''}
       <div class="q">${T(v.q)}</div>
       <div id="hb">${hintsHtml(c, v)}</div>
+      ${c.errors === 1 ? '<div class="note">📞 Ещё одна ошибка — и зовём папу!</div>' : ''}
       <div class="msg" id="msg"></div>
     </div>
     <div class="pad">${keypad('<button data-k="ok" class="g" aria-label="Проверить">✓</button>')}

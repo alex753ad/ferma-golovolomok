@@ -48,7 +48,16 @@ function drawBase(ctx, s, withNames) {
 function drawDynamic(ctx, s, player, markers) {
   const X = x => (x - BOUNDS.x0) * s, Z = z => (z - BOUNDS.z0) * s;
   const r = Math.max(3.5, s * 1.1);
+  const pulse = performance.now() / 900 % 1;
   for (const m of markers) {
+    if (m.blink) { // цель поручения: расходящееся кольцо и значок
+      ctx.strokeStyle = `rgba(255,201,60,${1 - pulse})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(X(m.x), Z(m.z), r * (1.2 + pulse * 2.5), 0, 7); ctx.stroke();
+      ctx.fillStyle = m.color; ctx.beginPath(); ctx.arc(X(m.x), Z(m.z), r * 1.4, 0, 7); ctx.fill();
+      ctx.font = `${Math.round(r * 1.8)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(m.blink, X(m.x), Z(m.z) + 1);
+      continue;
+    }
     if (m.small) { ctx.fillStyle = m.color; ctx.beginPath(); ctx.arc(X(m.x), Z(m.z), r * 0.55, 0, 7); ctx.fill(); continue; }
     ctx.fillStyle = m.color; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(X(m.x), Z(m.z), r, 0, 7); ctx.fill(); ctx.stroke();

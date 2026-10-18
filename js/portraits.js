@@ -1,11 +1,13 @@
-// Портреты персонажей для диалогов: рисуем голову 3D-модели в картинку один раз при загрузке.
+// Портреты персонажей для диалогов: семья — рисунки по фото, остальные — голова 3D-модели, снятая один раз при загрузке.
 import * as THREE from 'three';
 import { Actor } from './actor.js';
 
 const cache = {};
+const DRAWN = ['lev', 'grandpa', 'grandma', 'mom']; // нарисованы по фото: assets/portraits/<id>.svg
 
 // defs: { id: { model, hat, bg } }
 export function makePortraits(defs) {
+  for (const id of DRAWN) new Image().src = `assets/portraits/${id}.svg`; // заранее, чтобы первый диалог не мигал пустым
   const size = 256;
   const r = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
   r.setSize(size, size);
@@ -19,7 +21,8 @@ export function makePortraits(defs) {
   cam.lookAt(0, 1.22, 0);
 
   for (const [id, d] of Object.entries(defs)) {
-    const a = new Actor(d.model, { hat: d.hat, height: 1.7 });
+    if (DRAWN.includes(id)) continue;
+    const a = new Actor(d.model, { hat: d.hat, look: d.look, height: 1.7 });
     a.root.rotation.y = 0.15;
     a.mixer.update(0.5);
     scene.add(a.root);
@@ -33,5 +36,5 @@ export function makePortraits(defs) {
 
 // HTML-картинка портрета в цветном круге
 export function face(id, bg = '#ffe8a3') {
-  return `<div class="face" style="background:${bg}"><img src="${cache[id] || ''}" alt=""></div>`;
+  return `<div class="face" style="background:${bg}"><img src="${DRAWN.includes(id) ? `assets/portraits/${id}.svg` : cache[id] || ''}" alt=""></div>`;
 }

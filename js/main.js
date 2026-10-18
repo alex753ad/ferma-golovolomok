@@ -5,7 +5,8 @@ import { SPAWN, NPCS, NPC_COLORS, ZONES } from '../data/map.js';
 import { CHESTS } from '../data/tasks.js';
 import { loadAll } from './assets.js';
 import { buildWorld, updateWorld, followSun, setDayPhase, pickables, addPick, unlockZone, isLocked, fireworks, setGrassCount } from './world.js';
-import { findPath, blockCircle } from './nav.js';
+import { findPath } from './nav.js';
+import { initLife, updateLife, holdNpc } from './life.js';
 import { Actor } from './actor.js';
 import { CameraRig } from './controls.js';
 import { Minimap } from './minimap.js';
@@ -15,7 +16,7 @@ import { makePortraits } from './portraits.js';
 import { setNameResolver, isOpen, talk } from './dialog.js';
 import { initQuest, tryTask, chat, npcWithTask, currentTask, solvedCount, pinSetup } from './quest.js';
 import { initFarm, plotAt, actPlot, actPen, actMachine, grantItem, marketScreen, onZoneOpened, farmMarkers } from './farm.js';
-import { initFamily, momTalk, momHasNews, grannyTalk, grannyPlace, grannyHasNews } from './family.js';
+import { initFamily, momTalk, momHasNews, grannyTalk, grannyPlace, grannyHasNews, choreGoal } from './family.js';
 import { initStory, prologue, afterWin } from './story.js';
 import { initDay, D, tickDay, dayPhase, canStartTask, onStorySolved, isEnded, evening } from './day.js';
 import { initBonus, updateBonus, dailyNpc, dailyScreen, letterScreen, chestScreen, chestMarkers } from './bonus.js';
@@ -64,13 +65,13 @@ setNameResolver(npcName);
 
 // Портреты для диалогов
 makePortraits({
-  ...Object.fromEntries(NPCS.map(n => [n.id, { model: n.model, hat: n.hat }])),
+  ...Object.fromEntries(NPCS.map(n => [n.id, { model: n.model, hat: n.hat, look: n.look }])),
   dad: { model: 'character-male-f', hat: 'dad' },
-  lev: { model: 'character-male-f', hat: 'cap' },
+  lev: { model: 'character-male-d', hat: 'cap', look: 'lev' },
 });
 
 // ---------- персонажи ----------
-const lev = new Actor('character-male-f', { hat: S.hat || 'cap' });
+const lev = new Actor('character-male-d', { hat: S.hat || 'cap', look: 'lev' });
 lev.speed = CONFIG.walkSpeed;
 lev.root.position.set(SPAWN.x, 0, SPAWN.z);
 lev.root.rotation.y = Math.PI;
@@ -79,7 +80,7 @@ setCamera(camera);
 
 const sprite = (text, bg) => makeLabel([[text, text === '!' ? '700 56px Fredoka, sans-serif' : '700 40px sans-serif']], 64, 64, bg, '#2b2a1f', 0.012);
 const npcs = NPCS.map(n => {
-  const a = new Actor(n.model, { hat: n.hat, height: n.id === 'baron' ? 1.8 : 1.75 });
+  const a = new Actor(n.model, { hat: n.hat, look: n.look, height: n.id === 'baron' ? 1.8 : 1.75 });
   a.root.position.set(n.x, 0, n.z);
   a.root.rotation.y = n.rot;
   a.data = n;
@@ -87,13 +88,13 @@ const npcs = NPCS.map(n => {
   const tag = makeLabel([[name, '800 24px Nunito, sans-serif']], name.length * 13 + 36, 40, '#ffffff', '#2b2a1f', 0.014);
   tag.position.y = 2.5;
   a.root.add(tag);
+  a.tag = tag;
   // значки над головой: «!» — задача, «⭐» — задача дня, 🥧/💡 — у мамы и бабушки
   a.bang = sprite('!', '#ffc93c'); a.star = sprite('⭐', '#d0ebff');
   a.news = sprite(n.id === 'mom' ? '🥧' : '💡', '#ffe3ec');
   a.root.add(a.bang, a.star, a.news);
   scene.add(a.root);
   a.pick = addPick(n.x, n.z, 0.9, 2, { type: 'npc', id: n.id, actor: a });
-  if (!n.dynamic) blockCircle(n.x, n.z, 0.55);
   return a;
 });
 const npcById = id => npcs.find(a => a.data.id === id);
@@ -103,6 +104,7 @@ function moveNpc(id, p) {
   const a = npcById(id);
   a.root.visible = !!p;
   if (!p) { a.pick.position.y = -100; return; }
+  a.home = p;
   a.root.position.set(p.x, 0, p.z);
   a.pick.position.set(p.x, 1, p.z);
 }
@@ -111,6 +113,7 @@ function placeNpcs() {
   if (!isLocked('apiary')) moveNpc('beekeeper', { x: 27, z: -11 });
 }
 placeNpcs();
+initLife(npcs, lev);
 
 // ---------- касания ----------
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hitP = new THREE.Vector3();
@@ -140,6 +143,7 @@ function onTap(cx, cy) {
   if (hit) {
     const u = hit.object.userData, o = hit.object.position;
     if (u.type === 'npc') {
+      holdNpc(u.id);
       goTo(o.x, o.z, 1.4, () => {
         lev.lookAt(o.x, o.z);
         u.actor.lookAt(lev.root.position.x, lev.root.position.z);
@@ -188,17 +192,40 @@ const minimap = new Minimap(
     markers: [
       ...farmMarkers(),
       ...chestMarkers().filter(c => S.chestsSeen?.[c.id]).map(c => ({ x: c.x, z: c.z, color: '#8d5524', small: true })),
+      ...(p => p ? [{ x: p.x, z: p.z, color: '#ffc93c', blink: goal.icon }] : [])(goalPos()),
       ...npcs.filter(a => a.root.visible).map(a => ({ x: a.root.position.x, z: a.root.position.z, color: NPC_COLORS[a.data.id], bang: a.data.id === npcWithTask() && canStartTask() })),
     ],
   }),
   (x, z) => goTo(x, z),
 );
 
+// ---------- цель поручения мамы: значок над местом ----------
+const goalSprites = {};
+let goal = null;
+function goalPos() {
+  if (!goal) return null;
+  const a = npcById(goal.where);
+  if (a) return a.root.visible ? { x: a.root.position.x, z: a.root.position.z, y: 3.9 } : null;
+  const z = ZONES.find(z => z.id === goal.where);
+  return { x: z.x, z: z.z, y: 4.6 }; // выше крыши курятника
+}
+function updateGoal(t) {
+  for (const s of Object.values(goalSprites)) s.visible = false;
+  const p = goalPos();
+  if (!p) return;
+  if (!goalSprites[goal.icon]) scene.add(goalSprites[goal.icon] = sprite(goal.icon, '#ffc93c'));
+  const s = goalSprites[goal.icon];
+  s.visible = true;
+  s.position.set(p.x, p.y + Math.abs(Math.sin(t * 3)) * 0.35, p.z);
+  s.scale.setScalar(0.85 + Math.sin(t * 6) * 0.08); // пульсирует, чтобы было заметно
+}
+
 // ---------- состояние и значки ----------
 function refresh() {
   $('coins').textContent = S.coins;
   $('stars').textContent = S.stars;
   $('solved').textContent = solvedCount();
+  goal = choreGoal();
   const who = canStartTask() || S.cur ? npcWithTask() : null, daily = dailyNpc();
   for (const a of npcs) {
     a.bang.visible = a.data.id === who;
@@ -246,7 +273,7 @@ initPets(scene, {
 });
 initCollection({ onHat: () => lev.setHat(S.hat) });
 initStory({
-  focus: id => { const a = npcById(id); if (a.root.visible) goTo(a.root.position.x, a.root.position.z, 1.6); },
+  focus: id => { const a = npcById(id); holdNpc(id); if (a.root.visible) goTo(a.root.position.x, a.root.position.z, 1.6); },
   onFinal: () => { showBanner(); fireworks(lev.root.position.x, lev.root.position.z - 6, 10); setTheme('final'); },
 });
 if (S.story.final) { showBanner(); setTheme('final'); }
@@ -294,6 +321,8 @@ renderer.setAnimationLoop(() => {
   lev.speed = CONFIG.walkSpeed * (S.pieUntil > Date.now() ? CONFIG.pieSpeed : 1);
   lev.update(dt);
   if (lev.path && (stepT -= dt) < 0) { stepT = 0.32; step(); }
+  updateLife(dt);
+  updateGoal(t);
   for (const a of npcs) {
     a.update(dt);
     const y = 3.1 + Math.abs(Math.sin(t * 3)) * 0.25;

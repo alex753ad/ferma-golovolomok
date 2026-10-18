@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SKIP = /^(\.git|tools|node_modules|docs)(\/|$)|\.md$|^sw\.js$|^Ферма Головоломок|^\.gitignore$|^\.nojekyll$|License|LICENSE|OFL/;
+const SKIP = /^(\.git|tools|node_modules|docs)(\/|$)|^[^/]+\.(jpe?g|png)$|\.md$|^sw\.js$|^Ферма Головоломок|^\.gitignore$|^\.nojekyll$|License|LICENSE|OFL/;
 const files = [];
 (function walk(dir) {
   for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
