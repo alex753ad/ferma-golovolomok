@@ -4,6 +4,7 @@ import { CONFIG } from './config.js';
 import { S, save, exportCode, importCode, resetAll } from './save.js';
 import { D, addMinutes } from './day.js';
 import { BADGES } from './collection.js';
+import { familyCode, createFamily, joinFamily, showCode } from './sync.js';
 import { open, close, esc } from './dialog.js';
 import { $, toast } from './ui.js';
 
@@ -72,7 +73,13 @@ export function parentScreen(tab = 'progress') {
       <div class="list">${list || '<div class="muted">Писем пока нет.</div>'}</div>`;
   }
   if (tab === 'save') {
-    body = `<div class="muted">Код сохранения переносит весь прогресс на другое устройство. Скопируйте его и вставьте на новом планшете.</div>
+    const fc = familyCode();
+    body = `<div class="li col"><b>☁️ Синхронизация планшетов</b>${fc
+      ? `<div class="muted">Включена. Код семьи: <b>${showCode(fc)}</b> — введите его на другом планшете.</div>`
+      : `<div class="muted">Общий прогресс на всех планшетах. На первом нажмите «Включить», на остальных введите код семьи.</div>
+        <button class="btn y" id="fcNew">Включить и получить код</button>
+        <input class="inp" id="fcIn" maxlength="9" placeholder="Код семьи, например ABCD-2345"><button class="btn g" id="fcJoin">Подключить по коду</button>`}</div>
+      <div class="muted">Код сохранения переносит весь прогресс на другое устройство. Скопируйте его и вставьте на новом планшете.</div>
       <div class="li col"><textarea class="inp" id="code" rows="3" readonly>создаю код…</textarea><button class="btn y" id="copy">Скопировать</button></div>
       <div class="li col"><textarea class="inp" id="icode" rows="3" placeholder="Вставьте код FG1-…"></textarea><button class="btn g" id="imp">Восстановить из кода</button></div>`;
   }
@@ -116,6 +123,10 @@ function wire(tab) {
     document.querySelectorAll('[data-del]').forEach(b => (b.onclick = () => { S.dadTasks.splice(+b.dataset.del, 1); re(); }));
   }
   if (tab === 'save') {
+    if ($('fcNew')) $('fcNew').onclick = () => createFamily().then(() => location.reload(), () => toast('Нет связи с облаком — проверьте интернет'));
+    if ($('fcJoin')) $('fcJoin').onclick = () => joinFamily($('fcIn').value).then(
+      ok => ok ? (toast('Подключено! Загружаю прогресс…'), setTimeout(() => location.reload(), 800)) : toast('Такой код не найден'),
+      () => toast('Нет связи с облаком — проверьте интернет'));
     exportCode().then(c => { if ($('code')) $('code').value = c; });
     $('copy').onclick = async () => {
       try { await navigator.clipboard.writeText($('code').value); toast('Код скопирован'); }

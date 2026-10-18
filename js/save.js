@@ -53,6 +53,9 @@ export function save() {
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* приватный режим — играем без сохранения */ }
 }
 
+// Заменить весь прогресс (код сохранения, синхронизация). PIN входа на этом устройстве не трогаем.
+export function setState(s) { const pin = S.pinHash; S = { ...fresh(), ...s, parent: { ...fresh().parent, ...s.parent }, pinHash: pin }; save(); }
+
 export function resetAll() { const pin = S.pinHash; S = fresh(); S.pinHash = pin; save(); }
 
 // Дата устройства в виде 2026-10-17. Если часы перевели назад — остаёмся в самом позднем дне.
@@ -105,8 +108,7 @@ export async function importCode(code) {
     const json = new TextDecoder().decode(m[1] === '0' ? raw : await pipe(raw, new DecompressionStream('deflate-raw')));
     const s = JSON.parse(json);
     if (s.v !== 1) return false;
-    S = { ...fresh(), ...s };
-    save();
+    setState(s);
     return true;
   } catch { return false; }
 }

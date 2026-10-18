@@ -7,6 +7,7 @@ import { loadAll } from './assets.js';
 import { buildWorld, updateWorld, followSun, setDayPhase, pickables, addPick, unlockZone, isLocked, fireworks, setGrassCount } from './world.js';
 import { findPath } from './nav.js';
 import { initLife, updateLife, holdNpc } from './life.js';
+import { startSync } from './sync.js';
 import { Actor } from './actor.js';
 import { CameraRig } from './controls.js';
 import { Minimap } from './minimap.js';
@@ -50,6 +51,7 @@ resize();
 initAudio();
 
 // ---------- загрузка ----------
+startSync();
 await Promise.all([document.fonts.load('700 20px Fredoka'), document.fonts.load('800 20px Nunito'), document.fonts.load('900 20px Nunito')]);
 await loadAll(p => {
   $('loadBar').style.width = Math.round(p * 100) + '%';
