@@ -466,6 +466,10 @@ function farmFence() {
   for (let x = BOUNDS.x0; x < BOUNDS.x1; x += step) pts.push({ x: x + step / 2, z: BOUNDS.z0, rot: Math.PI / 2 }, { x: x + step / 2, z: BOUNDS.z1, rot: Math.PI / 2 });
   for (let z = BOUNDS.z0; z < BOUNDS.z1; z += step) pts.push({ x: BOUNDS.x0, z: z + step / 2 }, { x: BOUNDS.x1, z: z + step / 2 });
   scene.add(instances('town/fence', pts, { height: 1.0 }));
+  // вдоль забора не ходим, иначе Лев залезает в него
+  const { x0, x1, z0, z1 } = BOUNDS, W = x1 - x0, D = z1 - z0;
+  blockRect((x0 + x1) / 2, z0, W, 2); blockRect((x0 + x1) / 2, z1, W, 2);
+  blockRect(x0, (z0 + z1) / 2, 2, D); blockRect(x1, (z0 + z1) / 2, 2, D);
 }
 
 // Невидимый цилиндр для касания: крупнее объекта, чтобы легко попасть пальцем.

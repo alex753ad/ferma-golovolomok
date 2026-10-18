@@ -6,6 +6,7 @@ import { D, addMinutes } from './day.js';
 import { BADGES } from './collection.js';
 import { familyCode, createFamily, joinFamily, showCode } from './sync.js';
 import { open, close, esc } from './dialog.js';
+import { face } from './portraits.js';
 import { $, toast } from './ui.js';
 
 const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -85,7 +86,7 @@ export function parentScreen(tab = 'progress') {
   }
   const tabs = [['progress', 'Прогресс'], ['limits', 'Лимиты'], ['prizes', 'Призы'], ['letter', 'Своя задача'], ['save', 'Сохранение']];
   open(`<div class="l">
-      <div class="who"><div class="face" style="background:#c5f6fa;display:flex;align-items:center;justify-content:center;font-size:44px">👨</div><div><b>Для папы</b><span>Достижения, трудности и настройки</span></div></div>
+      <div class="who">${face('dad', '#c5f6fa')}<div><b>Для папы</b><span>Достижения, трудности и настройки</span></div></div>
       <div class="tabs">${tabs.map(([id, n]) => `<button class="tab ${tab === id ? 'on' : ''}" data-tab="${id}">${n}</button>`).join('')}</div>
       ${body}
     </div><button class="x" id="x" aria-label="Закрыть">✕</button>`, 'market parent');

@@ -1,6 +1,6 @@
 // Создано tools/build-sw.mjs — не править руками.
 // Офлайн-кэш: при новой версии игры кэш обновляется целиком.
-const VERSION = '9d5ceedb7b';
+const VERSION = 'e25874ad07';
 const FILES = [
   './',
   'assets/fonts/fredoka-latin-700-normal.woff2',
@@ -65,6 +65,7 @@ const FILES = [
   'assets/models/town/stall.glb',
   'assets/models/town/tree-high-round.glb',
   'assets/models/town/windmill.glb',
+  'assets/portraits/dad.svg',
   'assets/portraits/grandma.svg',
   'assets/portraits/grandpa.svg',
   'assets/portraits/lev.svg',

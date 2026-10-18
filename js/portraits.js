@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Actor } from './actor.js';
 
 const cache = {};
-const DRAWN = ['lev', 'grandpa', 'grandma', 'mom']; // нарисованы по фото: assets/portraits/<id>.svg
+const DRAWN = ['lev', 'grandpa', 'grandma', 'mom', 'dad']; // нарисованы по фото: assets/portraits/<id>.svg
 
 // defs: { id: { model, hat, bg } }
 export function makePortraits(defs) {

@@ -60,11 +60,11 @@ export const LOOKS = {
     [LEGS, 'c3r3', SKIN], [LEGS, 'c9r3', SKIN], [LEGS, 'c11r3', '#3a3030'],
   ], extra: h => earrings(h, '#d4a72c', 0.022) },
   mom: { rules: [
-    ['head', 'c13r3', '#4a2c20'], ['head', 'c11r3', '#4a2c20'], ['head', 'c15r2', SKIN],
+    ['head', 'c13r3', '#2a1b17'], ['head', 'c11r3', '#2a1b17'], ['head', 'c15r2', SKIN],
     ['head,' + ARMS, 'c15r3', '#f6d3bd'], ['torso', 'c14r3', '#f6d3bd'],
-    ['torso,' + ARMS, 'c1r3', '#f3efe8'], ['torso,' + ARMS, 'c5r2', '#f3efe8'], ['torso', 'c3r3', '#d9d2c6'], ['torso', 'c7r3', '#f3efe8'],
-    [LEGS, 'c15r2', '#6b4a3a'],
-  ], extra: h => earrings(h, '#e9ecef', 0.026, true) },
+    ['torso,' + ARMS, 'c1r3', '#1f1f24'], ['torso,' + ARMS, 'c5r2', '#1f1f24'], ['torso', 'c3r3', '#141418'], ['torso', 'c7r3', '#1f1f24'],
+    [LEGS, 'c11r2', '#2e3442'], [LEGS, 'c15r2', '#1a1a1a'],
+  ], extra: h => { longHair(h); scarf(h); earrings(h, '#d4a72c', 0.03); } },
 };
 
 // Детали на голове (координаты кости головы, как у шапок в actor.js)
@@ -72,6 +72,14 @@ const mat = c => new THREE.MeshLambertMaterial({ color: c });
 function sideHair(head) {
   const m = mat('#cfc6b4'), box = (w, h, d, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); head.add(b); };
   box(0.02, 0.12, 0.3, -0.18, 0.23, -0.02); box(0.02, 0.12, 0.3, 0.18, 0.23, -0.02); box(0.36, 0.13, 0.02, 0, 0.23, -0.175);
+}
+function longHair(head) { // мама: длинные прямые волосы ниже плеч
+  const m = mat('#2a1b17'), box = (w, h, d, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); head.add(b); };
+  box(0.4, 0.34, 0.06, 0, 0.06, -0.17); box(0.06, 0.26, 0.12, -0.19, 0.02, -0.08); box(0.06, 0.26, 0.12, 0.19, 0.02, -0.08);
+}
+function scarf(head) { // мама: оранжевый платок на шее
+  const s = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.03, 6, 12), mat('#e2592a'));
+  s.rotation.x = Math.PI / 2; s.position.set(0, -0.02, 0.01); head.add(s);
 }
 function earrings(head, color, r, star) {
   for (const s of [-1, 1]) {
