@@ -105,6 +105,43 @@ function addHat(body, kind) {
     btn.position.y = 0.125;
     g.add(dome, visor, btn);
     g.position.y = 0.3;
+  } else if (kind === 'drone') {
+    // кепка-квадрокоптер: корпус, 4 луча, моторы, пропеллеры в защите, камера и огонёк
+    const box = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), hatMat(c)); m.position.set(x, y, z); g.add(m); return m; };
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), hatMat('#e9ecef'));
+    dome.scale.set(0.96, 0.42, 0.78);
+    g.add(dome);
+    box(0.36, 0.025, 0.16, '#343a40', 0, 0.01, 0.25); // козырёк
+    box(0.2, 0.07, 0.26, '#343a40', 0, 0.13, 0);      // корпус
+    box(0.16, 0.03, 0.2, '#f8f9fa', 0, 0.18, 0);      // крышка
+    box(0.06, 0.02, 0.1, '#1c7ed6', 0, 0.2, 0);       // полоска
+    for (const a of [Math.PI / 4, -Math.PI / 4]) box(0.03, 0.02, 0.6, '#495057', 0, 0.14, 0).rotation.y = a; // лучи
+    const props = [];
+    for (const [x, z] of [[-0.21, -0.21], [0.21, -0.21], [-0.21, 0.21], [0.21, 0.21]]) {
+      const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.05, 12), hatMat('#212529'));
+      motor.position.set(x, 0.165, z);
+      const guard = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.008, 6, 28), hatMat('#1c7ed6'));
+      guard.rotation.x = Math.PI / 2; guard.position.set(x, 0.195, z);
+      const prop = new THREE.Group();
+      prop.position.set(x, 0.198, z);
+      prop.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.006, 0.035), hatMat('#adb5bd')), new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.02, 8), hatMat('#f8f9fa')));
+      g.add(motor, guard, prop);
+      props.push(prop);
+    }
+    box(0.07, 0.05, 0.05, '#212529', 0, 0.1, 0.14);   // подвес камеры
+    const lens = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), new THREE.MeshBasicMaterial({ color: '#4dabf7' }));
+    lens.position.set(0, 0.1, 0.168); g.add(lens);
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: '#40c057' }));
+    led.position.set(0, 0.15, -0.135); g.add(led);
+    let ph = 0;
+    // moving — Лев идёт (пропеллеры быстрее), alert 0..1 — рядом закрытый сундук (огонёк краснеет и мигает чаще)
+    g.userData.tick = (dt, moving, alert) => {
+      props.forEach((p, i) => { p.rotation.y += (i % 3 ? 1 : -1) * (moving ? 45 : 14) * dt; });
+      ph += dt * (alert ? 3 + alert * 12 : 1.5);
+      led.material.color.set(alert ? '#fa5252' : '#40c057');
+      led.visible = Math.sin(ph * Math.PI * 2) > -0.3;
+    };
+    g.position.y = 0.3;
   } else if (kind === 'straw') {
     g.add(cyl(0.4, 0.02, '#e9c46a'), cyl(0.22, 0.14, '#e9c46a', 0.07), cyl(0.225, 0.04, '#c0392b', 0.03));
     g.position.y = 0.3;

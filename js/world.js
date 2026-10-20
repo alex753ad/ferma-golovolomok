@@ -197,6 +197,13 @@ function zoneContent(zn, inner) {
       hive.position.set(hx, 0, hz); g.add(hive); inner.push([hx, hz, 1.1, 1.1]);
     }
   }
+  if (zn.kind === 'bakery') {
+    const b = building0('#ffd8a8', '#c2410c', 5, 3.6, 2.8);
+    b.add(mesh(box(0.6, 1.4, 0.6), '#a12d22', 1.4, 3.6, -0.6), mesh(box(1.4, 0.5, 0.08), '#fff3bf', 0, 2.3, 1.84));
+    b.position.set(x - 1.5, 0, z - 0.6); g.add(b); inner.push([x - 1.5, z - 0.6, 5.6, 4.2]);
+    smoke(x - 0.1, 4.4, z - 1.2);
+    mapShapes.buildings.push({ x: x - 1.5, z: z - 0.6, w: 5, d: 3.6, color: '#c2410c' });
+  }
   if (zn.kind === 'greenhouse') {
     g.add(mesh(box(w - 2, 2.6, d - 1.6), '#e7f5ff', x, 1.3, z, { transparent: true, opacity: 0.4, emissive: '#5a7a90' }));
     g.add(mesh(box(w - 1.8, 0.15, d - 1.4), '#495057', x, 2.65, z));

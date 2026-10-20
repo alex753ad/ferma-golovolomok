@@ -129,9 +129,13 @@ button:focus-visible { outline: 3px solid #1c7ed6; outline-offset: 2px; }
 @keyframes up { to { transform: translateY(-60px); opacity: 0; } }
 
 /* ---------- Ферма ---------- */
-.seed-btn { position: fixed; left: var(--l); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); z-index: 5; min-height: 56px; padding: 0 18px;
+.seed-btn { position: fixed; right: var(--r); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); z-index: 5; min-height: 56px; padding: 0 18px;
   border: 0; border-radius: 18px; background: var(--paper); font: 700 20px var(--disp); box-shadow: 0 4px 0 #d8cfb6; display: flex; gap: 6px; align-items: center; }
 .seed-btn:active { transform: translateY(3px); box-shadow: none; }
+.ride-btn { bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
+.joy { position: fixed; left: var(--l); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); z-index: 5; width: 140px; height: 140px; border-radius: 50%;
+  background: rgba(255,255,255,.22); border: 3px solid rgba(255,255,255,.6); touch-action: none; }
+.joy-knob { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px; border-radius: 50%; background: var(--paper); box-shadow: 0 4px 0 #d8cfb6; pointer-events: none; }
 .farm-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); z-index: 5; display: flex; gap: 10px; }
 .farm-bar .btn { font-size: 20px; padding: 0 20px; white-space: nowrap; animation: pop .25s; }
 .list { display: flex; flex-direction: column; gap: 8px; }

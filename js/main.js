@@ -2,26 +2,26 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { SPAWN, NPCS, NPC_COLORS, ZONES } from '../data/map.js';
-import { CHESTS } from '../data/tasks.js';
+import { CHESTS, TASKS } from '../data/tasks.js';
 import { loadAll } from './assets.js';
 import { buildWorld, updateWorld, followSun, setDayPhase, pickables, addPick, unlockZone, isLocked, fireworks, setGrassCount } from './world.js';
-import { findPath } from './nav.js';
+import { findPath, isFree } from './nav.js';
 import { initLife, updateLife, holdNpc } from './life.js';
 import { startSync } from './sync.js';
 import { Actor } from './actor.js';
-import { CameraRig } from './controls.js';
+import { CameraRig, Joystick } from './controls.js';
 import { Minimap } from './minimap.js';
 import { $, toast, makeLabel, setCamera, emit, on } from './ui.js';
 import { S, save } from './save.js';
 import { makePortraits } from './portraits.js';
 import { setNameResolver, isOpen, talk } from './dialog.js';
 import { initQuest, tryTask, chat, npcWithTask, currentTask, solvedCount, pinGate } from './quest.js';
-import { initFarm, plotAt, actPlot, actPen, actMachine, grantItem, marketScreen, onZoneOpened, farmMarkers } from './farm.js';
+import { initFarm, plotAt, actPlot, actPen, actMachine, grantItem, marketScreen, onZoneOpened, farmMarkers, bakeryScreen, funAct, levBusy } from './farm.js';
 import { initFamily, momTalk, momHasNews, grannyTalk, grannyPlace, grannyHasNews, choreGoal } from './family.js';
 import { initStory, prologue, afterWin } from './story.js';
 import { initDay, D, tickDay, dayPhase, canStartTask, onStorySolved, isEnded, evening } from './day.js';
 import { initBonus, updateBonus, dailyNpc, dailyScreen, letterScreen, chestScreen, chestMarkers } from './bonus.js';
-import { initPets, updatePets, refreshPets } from './pets.js';
+import { initPets, updatePets, refreshPets, hasHorse, setRiding } from './pets.js';
 import { initCollection, collectionScreen, flushPrizes, checkBadges } from './collection.js';
 import { settingsScreen } from './settings.js';
 import { initAudio, settings, step, sfx, moo, cluck, buzz, setTheme, musicQuiet } from './audio.js';
@@ -60,6 +60,8 @@ await loadAll(p => {
 buildWorld(scene, Q);
 if (params.get('open') === 'all') ZONES.forEach(z => unlockZone(z.id)); // для проверки: ?open=all
 S.unlocked.forEach(id => unlockZone(id));
+// Зоны, добавленные в игру позже (пекарня), открыть, если их задача уже решена
+for (const t of TASKS) if (t.reward.zone && S.tasks[t.id]?.stars && !S.unlocked.includes(t.reward.zone)) { S.unlocked.push(t.reward.zone); unlockZone(t.reward.zone); save(); }
 
 // Имя персонажа: для семьи — из настроек
 const npcName = id => CONFIG.names[id] || NPCS.find(n => n.id === id)?.name || id;
@@ -161,6 +163,8 @@ function onTap(cx, cy) {
       else if (kind === 'machine') actMachine(id);
       else if (kind === 'chest') chestScreen(id);
       else if (kind === 'mail') letterScreen();
+      else if (kind === 'bake') bakeryScreen();
+      else if (kind === 'fun') { if (S.riding) { setRiding(false); refresh(); } funAct(id); }
       else toast(u.name);
     });
     return;
@@ -187,6 +191,35 @@ async function npcTalk(id) {
 
 const rig = new CameraRig(camera, renderer.domElement, onTap);
 rig.snap(lev.root.position);
+
+// ---------- джойстик ----------
+const joy = new Joystick($('joy'), $('joyKnob'));
+function joyMove(dt) {
+  const m = Math.min(1, Math.hypot(joy.x, joy.y)), was = lev.joy;
+  lev.joy = m > 0.15 && !isOpen() && !isEnded() && !levBusy();
+  if (!lev.joy) { if (was) { lev.play('idle'); emit('walked'); } return; }
+  lev.path = null; lev.onArrive = null;
+  // вперёд — от камеры, вправо — вправо на экране
+  const fx = -Math.sin(rig.yaw), fz = -Math.cos(rig.yaw);
+  const ux = (-fz * joy.x - fx * joy.y) / m, uz = (fx * joy.x - fz * joy.y) / m;
+  const p = lev.root.position, s = lev.speed * m * dt, stuck = !isFree(p.x, p.z);
+  if (stuck || isFree(p.x + ux * s, p.z + uz * s)) { p.x += ux * s; p.z += uz * s; }
+  else if (isFree(p.x + ux * s, p.z)) p.x += ux * s; // скользим вдоль препятствия
+  else if (isFree(p.x, p.z + uz * s)) p.z += uz * s;
+  lev.targetRot = Math.atan2(ux, uz);
+  if (!S.riding) lev.play(lev.speed > 4.6 ? 'sprint' : 'walk'); // верхом Лев сидит
+}
+
+// Кнопка «верхом на коне»
+$('rideBtn').onclick = () => { setRiding(!S.riding); refresh(); };
+
+// Насколько близко закрытый сундук (для огонька кепки-дрона): 0 — далеко, 1 — рядом
+function chestAlert() {
+  const p = lev.root.position;
+  let d = Infinity;
+  for (const c of CHESTS) if (!S.chests[c.id]) d = Math.min(d, Math.hypot(p.x - c.x, p.z - c.z));
+  return d < 15 ? 1 - d / 15 : 0;
+}
 
 const minimap = new Minimap(
   () => ({
@@ -227,6 +260,9 @@ function refresh() {
   $('coins').textContent = S.coins;
   $('stars').textContent = S.stars;
   $('solved').textContent = solvedCount();
+  $('rideBtn').hidden = !hasHorse();
+  $('rideBtn').textContent = S.riding ? '🐴 Слезть' : '🐴 Сесть на коня';
+  rig.maxDist = S.decor.includes('balloon') ? CONFIG.balloonDist : CONFIG.camera.maxDist;
   goal = choreGoal();
   const who = canStartTask() || S.cur ? npcWithTask() : null, daily = dailyNpc();
   for (const a of npcs) {
@@ -290,7 +326,11 @@ on('collect', p => { sfx('coins', 0.6); if (p === 'egg') cluck(); if (p === 'mil
 on('chest', () => sfx('creak'));
 on('buy', () => sfx('coins'));
 on('newday', refresh);
-on('buy', id => id.startsWith('collar') && refreshPets());
+on('buy', id => {
+  if (id.startsWith('collar') || ['dog', 'goat', 'horse'].includes(id)) refreshPets();
+  if (id === 'drone') lev.setHat(S.hat);
+  refresh();
+});
 
 refresh();
 setInterval(save, 30000); // время в игре и прочее — раз в полминуты
@@ -320,9 +360,11 @@ let stepT = 0, slow = 0, frames = 0, fpsT = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
   if (!document.hidden) { S.playSeconds += dt; tickDay(dt); }
-  lev.speed = CONFIG.walkSpeed * (S.pieUntil > Date.now() ? CONFIG.pieSpeed : 1);
+  lev.speed = CONFIG.walkSpeed * (S.pieUntil > Date.now() ? CONFIG.pieSpeed : 1) * (S.riding ? CONFIG.horseSpeed : S.decor.includes('bike') ? CONFIG.bikeSpeed : 1);
+  joyMove(dt);
   lev.update(dt);
-  if (lev.path && (stepT -= dt) < 0) { stepT = 0.32; step(); }
+  lev.hat?.userData.tick?.(dt, !!lev.path || lev.joy, chestAlert());
+  if ((lev.path || lev.joy) && (stepT -= dt) < 0) { stepT = 0.32; step(); }
   updateLife(dt);
   updateGoal(t);
   for (const a of npcs) {
@@ -358,6 +400,6 @@ if (isEnded()) evening();
 else {
   await prologue();
   startTutorial({ scene, pointOf: id => id === 'strip' ? ZONES.find(z => z.id === 'strip') : npcById(id)?.root.position });
-  if (S.story.tutorial) toast('Нажми на землю — Лев пойдёт туда. Тяни пальцем — поверни камеру.', 3500);
+  if (S.story.tutorial) toast('Джойстик слева — идти. Или нажми на землю — Лев пойдёт туда. Тяни пальцем — поверни камеру.', 3500);
 }
 checkBadges();

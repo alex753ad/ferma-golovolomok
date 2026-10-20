@@ -4,7 +4,7 @@ import { CONFIG } from './config.js';
 import { TEASERS } from '../data/story.js';
 import { open, close, isOpen, talk, keypad, bindKeys, shake, T, esc } from './dialog.js';
 import { face } from './portraits.js';
-import { $, emit } from './ui.js';
+import { $, emit, toast } from './ui.js';
 
 let hooks;
 export function initDay(h) { hooks = h; D(); }
@@ -21,6 +21,8 @@ function newDay() {
   if (S.streak.last !== d) {
     S.streak.count = S.streak.last === yesterdayOf(d) ? S.streak.count + 1 : 1;
     S.streak.last = d;
+    const gift = CONFIG.streakCoins[S.streak.count];
+    if (gift) { S.coins += gift; setTimeout(() => toast(`${S.streak.count} дней подряд на ферме! Подарок: ${gift} монет 🔥`, 4000), 3000); }
   }
   S.day = { date: d, sec: 0, solved: 0, daily: null, bonus: 0, warned: false, ended: false, doneAt: 0 };
   save();
@@ -62,6 +64,16 @@ export function tickDay(dt) {
 }
 
 // ---------- вечер ----------
+// Созвездия для телескопа (одно на вечер)
+const STARS = [
+  ['Большая Медведица', 'Семь ярких звёзд складываются в ковш. Если провести линию через две крайние — упрёшься в Полярную звезду.'],
+  ['Малая Медведица', 'На конце её ручки — Полярная звезда. Она всегда показывает на север.'],
+  ['Орион', 'Охотник с поясом из трёх звёзд в ряд. Их легко найти зимой.'],
+  ['Кассиопея', 'Пять звёзд в форме буквы W. Видна круглый год.'],
+  ['Лебедь', 'Большой крест в летнем небе. Ярчайшая звезда — Денеб.'],
+  ['Лира', 'Маленький ромбик и яркая голубая Вега рядом.'],
+  ['Лев', 'Созвездие с твоим именем! Главная звезда — Регул, «маленький царь».'],
+];
 let timer;
 export function evening() {
   const d = D();
@@ -74,6 +86,7 @@ export function evening() {
       <div class="ch-title">Вечер на ферме</div>
       <div class="talk">${face('mom')}<div class="talk-body"><b>${esc(CONFIG.names.mom)}</b>
         <div class="say">Всё, ужинать! ${T('{cat}')} уже спит на крылечке 😴 Приходи завтра.</div></div></div>
+      ${S.decor.includes('telescope') ? (([n, f]) => `<div class="note">🔭 В телескоп видно созвездие <b>${n}</b>. ${f}</div>`)(STARS[d.date.split('-').reduce((a, b) => a + +b, 0) % STARS.length]) : ''}
       <div class="note">Завтра: ${T(teaser)}</div>
       <div class="ev-timer">Новый день через <b id="evT"></b></div>
     </div>`, 'chapter-dlg ev-dlg');

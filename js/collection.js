@@ -71,12 +71,12 @@ export function collectionScreen(tab = 'finds') {
   if (tab === 'chests') body = `<div class="grid">${CHESTS.map(c => cell(S.chests[c.id], CHEST_REWARDS[c.reward].icon, T(CHEST_REWARDS[c.reward].name))).join('')}</div>
     <div class="muted">Сундуки спрятаны по углам фермы. ${esc(CONFIG.names.cat)} мяукает, когда рядом сундук!</div>`;
   if (tab === 'pets') {
-    const n = CONFIG.streakPets;
+    const hats = HATS.filter(h => h.has());
     body = `<div class="grid">${cell(true, '🐱', CONFIG.names.cat, 'всегда с тобой')}
-      ${cell(S.pets.dog, '🐶', 'Собака', `${n.dog} дня подряд`)}${cell(S.pets.goat, '🐐', 'Козлёнок', `${n.goat} дней подряд`)}${cell(S.pets.horse, '🐴', 'Конь', `${n.horse} дней подряд`)}
+      ${cell(S.pets.dog, '🐶', 'Собака', 'из магазина')}${cell(S.pets.goat, '🐐', 'Козлёнок', 'из магазина')}${cell(S.pets.horse, '🐴', 'Конь', 'из магазина')}
       ${cell(S.decor.includes('gold-hen'), '🐔', 'Золотая курица', 'за звёзды')}${cell(S.decor.includes('parrot'), '🦜', 'Попугай Кеша', 'за звёзды')}</div>
-      <div class="muted">Серия дней подряд: ${S.streak.count} 🔥 Следующий питомец: ${!S.pets.dog ? `собака через ${n.dog - S.streak.count} дн.` : !S.pets.goat ? `козлёнок через ${n.goat - S.streak.count} дн.` : !S.pets.horse ? `конь через ${n.horse - S.streak.count} дн.` : 'все питомцы собраны!'}</div>
-      ${S.chests.c1 ? `<div class="row"><button class="btn y" id="hat">${S.hat === 'cowboy' ? '🧢 Надеть кепку' : '🤠 Надеть шляпу'}</button></div>` : ''}`;
+      <div class="muted">Питомцы продаются у тёти Вали. Серия дней подряд: ${S.streak.count} 🔥 — за 3, 7 и 14 дней подарок монетами.</div>
+      ${hats.length > 1 ? `<div class="row">${hats.map(h => `<button class="btn ${S.hat === h.id ? 'g' : 'y'}" data-hat="${h.id}">${h.name}</button>`).join('')}</div>` : ''}`;
   }
   if (tab === 'badges') body = `<div class="grid">${BADGES.map(b => `<div class="cell ${S.badges[b.id] ? '' : 'locked'}"><div class="ci">${S.badges[b.id] ? b.icon : '🔒'}</div><div class="cn">${esc(b.name)}</div><div class="cs">${esc(b.how)}</div></div>`).join('')}</div>`;
   if (tab === 'prizes') {
@@ -97,8 +97,15 @@ export function collectionScreen(tab = 'finds') {
     </div><button class="x" id="x" aria-label="Закрыть">✕</button>`, 'market coll');
   $('x').onclick = close;
   document.querySelectorAll('[data-tab]').forEach(b => (b.onclick = () => collectionScreen(b.dataset.tab)));
-  if ($('hat')) $('hat').onclick = () => { S.hat = S.hat === 'cowboy' ? 'cap' : 'cowboy'; save(); hooksRef.onHat(); collectionScreen('pets'); };
+  document.querySelectorAll('[data-hat]').forEach(b => (b.onclick = () => { S.hat = b.dataset.hat; save(); hooksRef.onHat(); collectionScreen('pets'); }));
 }
+
+// Шапки Льва
+const HATS = [
+  { id: 'cap', name: '🧢 Кепка', has: () => true },
+  { id: 'cowboy', name: '🤠 Шляпа', has: () => !!S.chests.c1 },
+  { id: 'drone', name: '🚁 Кепка-дрон', has: () => S.decor.includes('drone') },
+];
 
 let hooksRef;
 export function initCollection(h) {

@@ -59,6 +59,7 @@ export const moo = () => { tone('sawtooth', 130, 95, 1.1, 0.25, 0, 500); tone('s
 export const cluck = () => { for (let i = 0; i < 3; i++) tone('square', 900 - i * 80, 500, 0.08, 0.08, i * 0.13, 1800); };
 export const buzz = () => tone('sawtooth', 220, 230, 0.6, 0.05, 0, 900);
 export const splash = () => { for (let i = 0; i < 5; i++) tone('triangle', 1400 + Math.random() * 800, 300, 0.15, 0.06, i * 0.04); };
+export const chirp = () => { for (let i = 0; i < 3; i++) tone('sine', 2600 + i * 300, 3400, 0.07, 0.05, i * 0.11); };
 export const meow = () => { tone('triangle', 700, 1100, 0.18, 0.12); tone('triangle', 1100, 600, 0.3, 0.12, 0.18); };
 
 // Мотор техники

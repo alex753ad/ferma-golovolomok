@@ -5,7 +5,7 @@ import { $ } from './ui.js';
 
 const MW = BOUNDS.x1 - BOUNDS.x0, MD = BOUNDS.z1 - BOUNDS.z0;
 const ZONE_COLORS = { field: '#a0703c', beds: '#a0703c', coop: '#e9d7a5', barn: '#d8c48a', garden: '#69b34c',
-  mill: '#d8c48a', pond: '#e9c98a', apiary: '#d3e07a', greenhouse: '#c5e3f6' };
+  mill: '#d8c48a', pond: '#e9c98a', apiary: '#d3e07a', greenhouse: '#c5e3f6', bakery: '#f3d9b1' };
 
 // Нарисовать неподвижную часть карты в контекст ctx масштабом s (пикселей на метр).
 function drawBase(ctx, s, withNames) {

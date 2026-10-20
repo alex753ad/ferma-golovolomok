@@ -15,6 +15,7 @@ export const ZONES = [
   { id: 'barn',       name: 'Коровник',    x: -33, z: 1,   w: 9,  d: 8,  lock: 10, gate: 'e', kind: 'barn' },
   { id: 'garden',     name: 'Сад',         x: 33,  z: 1,   w: 10, d: 10, lock: 11, gate: 'w', kind: 'garden' },
   { id: 'mill',       name: 'Мельница',    x: -33, z: -15, w: 9,  d: 9,  lock: 12, gate: 'e', kind: 'mill' },
+  { id: 'bakery',     name: 'Пекарня',     x: -33, z: -27, w: 9,  d: 6,  lock: 14, gate: 'e', kind: 'bakery' },
   { id: 'field3',     name: 'Поле 3',      x: 14,  z: 1,   w: 14, d: 9,  lock: 13, gate: 'w', kind: 'field' },
   { id: 'pond',       name: 'Пруд',        x: 33,  z: 16,  w: 12, d: 9,  lock: 15, gate: 'w', kind: 'pond' },
   { id: 'apiary',     name: 'Пасека',      x: 33,  z: -15, w: 10, d: 9,  lock: 16, gate: 'w', kind: 'apiary' },

@@ -4,11 +4,11 @@ import { CONFIG } from './config.js';
 import { ZONES } from '../data/map.js';
 import { S, save } from './save.js';
 import { instances, cloneModel, fitHeight } from './assets.js';
-import { isLocked, makeWindy, addPick, onFrame } from './world.js';
+import { isLocked, makeWindy, addPick, onFrame, fireworks } from './world.js';
 import { blockRect } from './nav.js';
 import { Actor } from './actor.js';
 import { $, toast, floatAt, emit, makeLabel } from './ui.js';
-import { motor, splash } from './audio.js';
+import { motor, splash, chirp } from './audio.js';
 import { open, close, esc } from './dialog.js';
 import { face } from './portraits.js';
 
@@ -38,7 +38,8 @@ function plotState(p) {
   if (!S.plots[p.id]) S.plots[p.id] = p.zone === 'strip' ? { s: 'grow', crop: 'wheat', t0: 0 } : { s: 'wild' };
   return S.plots[p.id];
 }
-const growMs = st => C.growMinutes[C.crops[st.crop].grow] * 60000 / (st.water ? C.waterBoost : 1);
+const watered = st => st.water || S.decor.includes('autowater');
+const growMs = st => C.growMinutes[C.crops[st.crop].grow] * 60000 / (watered(st) ? C.waterBoost : 1);
 const progress = st => Math.min(1, (now() - st.t0) / growMs(st));
 function stage(p) {
   const st = plotState(p);
@@ -71,14 +72,14 @@ export function actPlot(p, quiet = false) {
     S.plots[p.id] = { s: 'dug' };
     floatAt(p, '+1 ' + C.crops[st.crop].icon);
     emit('harvest');
-  } else if (S.items.watering && !st.water) {
+  } else if (S.items.watering && !watered(st)) {
     const k = progress(st);
     st.water = true;
     st.t0 = now() - k * growMs(st);
     floatAt(p, '💧');
     emit('water');
   } else {
-    if (!quiet) toast(`${C.crops[st.crop].name} вырастет через ${fmt((1 - progress(st)) * growMs(st))}` + (S.items.watering ? ' (уже полито)' : ''));
+    if (!quiet) toast(`${C.crops[st.crop].name} вырастет через ${fmt((1 - progress(st)) * growMs(st))}` + (watered(st) ? ' (уже полито)' : ''));
     return false;
   }
   save(); rebuild(); hooks.onChange();
@@ -165,14 +166,14 @@ function machineActions(zoneId) {
   const list = [];
   if (S.items.tractor && ps.some(p => st(p) === 'wild')) list.push({ id: 'tractor', label: '🚜 Вспахать поле', want: 'wild' });
   if (S.items.seeder && ps.some(p => st(p) === 'dug')) list.push({ id: 'seeder', label: '🌱 Засеять поле', want: 'dug' });
-  if (S.items.watering && ps.some(p => ['sprout', 'young'].includes(st(p)) && !plotState(p).water)) list.push({ id: 'water', label: '💧 Полить всё', want: 'water' });
+  if (S.items.watering && ps.some(p => ['sprout', 'young'].includes(st(p)) && !watered(plotState(p)))) list.push({ id: 'water', label: '💧 Полить всё', want: 'water' });
   if (S.items.combine && ps.some(p => st(p) === 'ripe')) list.push({ id: 'combine', label: '🌾 Убрать урожай', want: 'ripe' });
   return list;
 }
 
 let run = null; // едущая техника: { obj, plots, i }
 function startMachine(zoneId, a) {
-  const ps = PLOTS.filter(p => p.zone === zoneId && (a.want === 'water' ? ['sprout', 'young'].includes(stage(p)) && !plotState(p).water : stage(p) === a.want));
+  const ps = PLOTS.filter(p => p.zone === zoneId && (a.want === 'water' ? ['sprout', 'young'].includes(stage(p)) && !watered(plotState(p)) : stage(p) === a.want));
   if (!ps.length) return;
   if (a.id === 'water') { // полив — без машины, сразу
     let n = 0; for (const p of ps) if (actPlot(p, true)) n++;
@@ -386,6 +387,74 @@ function showDecor() {
       pts.forEach(p => blockRect(p.x, p.z, 0.5, 0.5));
       return instances('town/lantern', pts, { height: 2.2 });
     },
+    birdhouse() { // скворечник на шесте, на крыше прыгают птички
+      const g = new THREE.Group();
+      const birds = [m(new THREE.SphereGeometry(0.1, 8, 6), '#495057', -0.15, 2.95, 0), m(new THREE.SphereGeometry(0.1, 8, 6), '#e8590c', 0.15, 2.95, 0)];
+      const roof = m(B(0.7, 0.08, 0.7), '#c0392b', 0, 2.82, 0); roof.rotation.z = 0.15;
+      g.add(m(B(0.12, 2.4, 0.12), '#7a4b24', 0, 1.2, 0), m(B(0.5, 0.6, 0.5), '#e9c46a', 0, 2.5, 0), roof,
+        m(new THREE.CircleGeometry(0.09, 12), '#2b2a1f', 0, 2.55, 0.26), ...birds);
+      g.position.set(-15, 0, 13); blockRect(-15, 13, 0.6, 0.6);
+      onFrame((dt, t) => birds.forEach((b, i) => { b.position.y = 2.95 + Math.max(0, Math.sin(t * 7 + i * 2)) * 0.12; }));
+      return g;
+    },
+    cathouse() { // домик для Симы: вечером она спит в нём
+      const g = new THREE.Group();
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.55, 4), new THREE.MeshLambertMaterial({ color: '#e64980' }));
+      roof.position.y = 1.1; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
+      g.add(m(B(0.9, 0.8, 0.9), '#ffd8a8', 0, 0.4, 0), roof, m(new THREE.CircleGeometry(0.22, 14), '#2b2a1f', 0, 0.35, 0.46));
+      g.position.set(-12.6, 0, 12.6); blockRect(-12.6, 12.6, 1, 1); return g;
+    },
+    swing() { // качели: рама и сиденье на верёвках (крутится вокруг перекладины)
+      const g = new THREE.Group(), seat = new THREE.Group();
+      for (const x of [-1.1, 1.1]) for (const z of [-0.5, 0.5]) { const p = m(B(0.1, 2.6, 0.1), '#7a4b24', x, 1.25, z * 0.6); p.rotation.x = -z * 0.4; g.add(p); }
+      g.add(m(B(2.4, 0.12, 0.12), '#5c3a1e', 0, 2.45, 0));
+      seat.add(m(B(0.03, 1.9, 0.03), '#e9c46a', -0.35, -0.95, 0), m(B(0.03, 1.9, 0.03), '#e9c46a', 0.35, -0.95, 0), m(B(0.8, 0.08, 0.35), '#e03131', 0, -1.9, 0));
+      seat.position.y = 2.45; g.add(seat); g.userData.seat = seat;
+      g.position.set(-14, 0, 21.2); blockRect(-14, 21.2, 2.6, 1.4);
+      addPick(-14, 21.2, 1.4, 2.6, { type: 'object', id: 'fun:swing', name: 'Качели' });
+      return g;
+    },
+    trampoline() {
+      const g = new THREE.Group();
+      g.add(m(new THREE.CylinderGeometry(1.2, 1.2, 0.12, 24), '#1c7ed6', 0, 0.5, 0), m(new THREE.CylinderGeometry(1.05, 1.05, 0.14, 24), '#212529', 0, 0.51, 0));
+      for (let a = 0; a < 6.28; a += 1.57) g.add(m(B(0.08, 0.5, 0.08), '#868e96', Math.cos(a) * 1.1, 0.25, Math.sin(a) * 1.1));
+      g.position.set(-21, 0, 20.3); blockRect(-21, 20.3, 2.4, 2.4);
+      addPick(-21, 20.3, 1.4, 1.5, { type: 'object', id: 'fun:trampoline', name: 'Батут' });
+      return g;
+    },
+    telescope() {
+      const g = new THREE.Group();
+      for (let a = 0; a < 6.28; a += 2.09) { const l = m(B(0.06, 1.3, 0.06), '#495057', Math.cos(a) * 0.25, 0.6, Math.sin(a) * 0.25); l.rotation.set(Math.sin(a) * -0.35, 0, Math.cos(a) * 0.35); g.add(l); }
+      const tube = m(new THREE.CylinderGeometry(0.1, 0.14, 1.2, 14), '#f1f3f5', 0, 1.35, 0); tube.rotation.x = -0.9;
+      g.add(tube, m(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 14), '#1c7ed6', 0, 1.35 + Math.cos(0.9) * 0.6, -Math.sin(0.9) * 0.6));
+      g.children.at(-1).rotation.x = -0.9;
+      g.position.set(-4.5, 0, 8); blockRect(-4.5, 8, 0.9, 0.9);
+      addPick(-4.5, 8, 0.9, 1.8, { type: 'object', id: 'fun:telescope', name: 'Телескоп' });
+      return g;
+    },
+    fountain() { // фонтан с брызгами
+      const g = new THREE.Group();
+      g.add(m(new THREE.CylinderGeometry(1.3, 1.4, 0.5, 24), '#ced4da', 0, 0.25, 0), m(new THREE.CylinderGeometry(1.12, 1.12, 0.06, 24), '#4dabf7', 0, 0.48, 0),
+        m(new THREE.CylinderGeometry(0.15, 0.2, 1.2, 12), '#ced4da', 0, 0.9, 0), m(new THREE.CylinderGeometry(0.5, 0.25, 0.2, 16), '#ced4da', 0, 1.5, 0));
+      const drops = [];
+      for (let i = 0; i < 10; i++) { const d = m(new THREE.SphereGeometry(0.06, 6, 4), '#a5d8ff', 0, 1.6, 0); d.castShadow = false; drops.push(d); g.add(d); }
+      onFrame((dt, t) => drops.forEach((d, i) => {
+        const k = (t * 0.8 + i / 10) % 1, a = i * 0.63;
+        d.position.set(Math.cos(a) * k * 0.9, 1.6 + k * 1.2 - k * k * 2, Math.sin(a) * k * 0.9);
+      }));
+      g.position.set(5, 0, 8.5); blockRect(5, 8.5, 2.8, 2.8); return g;
+    },
+    balloon() { // воздушный шар кружит над фермой
+      const g = new THREE.Group();
+      ['#e03131', '#ffd43b', '#e03131', '#ffd43b', '#e03131', '#ffd43b', '#e03131', '#ffd43b'].forEach((c, i) => {
+        const s = new THREE.Mesh(new THREE.SphereGeometry(2.4, 6, 14, i * Math.PI / 4, Math.PI / 4), new THREE.MeshLambertMaterial({ color: c }));
+        s.scale.y = 1.2; s.position.y = 4; s.castShadow = true; g.add(s);
+      });
+      g.add(m(B(1, 0.8, 1), '#8d5524', 0, 0, 0));
+      for (const [x, z] of [[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]]) g.add(m(B(0.04, 1.8, 0.04), '#5c3a1e', x * 1.3, 1.2, z * 1.3));
+      onFrame((dt, t) => { const a = t * 0.05; g.position.set(Math.cos(a) * 18, 16 + Math.sin(t * 0.6), 6 + Math.sin(a) * 14); });
+      return g;
+    },
   };
   for (const id of S.decor) {
     if (decorObjs[id] || !make[id]) continue;
@@ -411,7 +480,7 @@ export function marketScreen(tab = 'sell') {
       <div class="row"><button class="btn g" id="sellAll">Продать всё за ${total}</button></div>`
     : `<div class="q small">Пока нечего продавать. Собери урожай на грядках — и приходи!</div>`;
   const shop = `<div class="list">${C.shop.map(it => {
-      const owned = it.paint ? S.paint === it.paint : it.collar ? S.collar === it.collar : S.decor.includes(it.id);
+      const owned = it.once ? false : it.pet ? S.pets[it.id] : it.paint ? S.paint === it.paint : it.collar ? S.collar === it.collar : S.decor.includes(it.id);
       const lockedByStars = it.stars && S.stars < it.stars;
       const price = it.stars ? `за ${it.stars}⭐` : `${it.cost} <span class="coin"></span>`;
       const btn = owned ? '<i>есть ✓</i>' : lockedByStars ? `<i>нужно ${it.stars}⭐</i>` : `<button class="btn y sm" data-buy="${it.id}">${it.stars ? 'Забрать' : 'Купить'}</button>`;
@@ -436,11 +505,109 @@ export function marketScreen(tab = 'sell') {
 function buy(id) {
   const it = C.shop.find(x => x.id === id);
   if (it.cost) { if (S.coins < it.cost) return toast('Не хватает монет'); S.coins -= it.cost; }
-  if (it.paint) S.paint = it.paint; else if (it.collar) S.collar = it.collar; else S.decor.push(id);
+  if (it.pet) S.pets[id] = true;
+  else if (it.paint) S.paint = it.paint;
+  else if (it.collar) S.collar = it.collar;
+  else if (!it.once) S.decor.push(id);
+  if (it.hat) S.hat = id;
   save(); applyAll(); hooks.onChange();
-  toast(`${it.name} — готово!`);
   emit('buy', id);
+  if (id === 'salute') { close(); fireworks(hooks.lev.root.position.x, hooks.lev.root.position.z - 6, 8); return; }
+  toast(`${it.name} — готово!`);
   marketScreen('shop');
+}
+
+// ---------- пекарня ----------
+let oven = null; // { x, z, sign, icon }
+function setupBakery() {
+  if (oven || isLocked('bakery')) return;
+  const zn = ZONES.find(z => z.id === 'bakery'), x = zn.x - 1.5, z = zn.z + 1.6;
+  addPick(x, z, 1.8, 3, { type: 'object', id: 'bake:oven', name: 'Пекарня' });
+  oven = { x, z, sign: null, icon: null };
+}
+const ovenReady = () => S.oven && now() >= S.oven.readyAt;
+const needText = need => Object.entries(need).map(([k, n]) => `${goodsIcon(k)}×${n}`).join(' ');
+
+export function bakeryScreen() {
+  if (S.oven) {
+    const id = S.oven.id, g = C.goods[id];
+    if (!ovenReady()) return toast(`${g.name} печётся — будет через ${fmt(S.oven.readyAt - now())}`);
+    S.inv[id] = (S.inv[id] || 0) + 1;
+    floatAt(oven, `+1 ${g.icon}`);
+    S.oven = null; save(); hooks.onChange(); emit('bake');
+    return toast(`${g.name} готов! Тётя Валя купит за ${priceOf(id)} монет.`);
+  }
+  const have = k => S.inv[k] || 0;
+  const rows = C.bakery.map(r => {
+    const g = C.goods[r.id], ok = Object.entries(r.need).every(([k, n]) => have(k) >= n);
+    return `<div class="li"><span>${g.icon} ${esc(g.name)} <small>${needText(r.need)} · ${r.minutes} мин · продать за ${priceOf(r.id)}</small></span>
+      ${ok ? `<button class="btn y sm" data-bake="${r.id}">Испечь</button>` : '<i>не хватает</i>'}</div>`;
+  }).join('');
+  open(`<div class="l">
+      <div class="who"><div class="face" style="background:#ffe8cc;display:flex;align-items:center;justify-content:center;font-size:44px">🍞</div>
+        <div><b>Пекарня</b><span>Из урожая — угощения, они дороже. Печётся по одному.</span></div></div>
+      <div class="list">${rows}</div>
+      <div class="muted">Не продавай всё сразу: для выпечки нужны пшеница, яйца, молоко, яблоки, морковь и мёд.</div>
+    </div><button class="x" id="x" aria-label="Закрыть">✕</button>`, 'market');
+  $('x').onclick = close;
+  document.querySelectorAll('[data-bake]').forEach(b => (b.onclick = () => {
+    const r = C.bakery.find(x => x.id === b.dataset.bake);
+    for (const [k, n] of Object.entries(r.need)) S.inv[k] -= n;
+    S.oven = { id: r.id, readyAt: now() + r.minutes * 60000 };
+    save(); hooks.onChange(); close();
+    toast(`${C.goods[r.id].name} в печи! Будет готов через ${r.minutes} мин.`);
+  }));
+}
+
+function updateBakery() {
+  if (!oven) return;
+  const icon = ovenReady() ? C.goods[S.oven.id].icon : S.oven ? '🔥' : '';
+  if (icon !== oven.icon) {
+    oven.icon = icon;
+    if (oven.sign) scene.remove(oven.sign);
+    oven.sign = makeLabel([[icon, '700 40px sans-serif']], 72, 72, ovenReady() ? '#d3f9d8' : '#fff1b8', '#2b2a1f', 0.013);
+    oven.sign.visible = !!icon;
+    scene.add(oven.sign);
+  }
+  oven.sign.position.set(oven.x, 4.4 + Math.abs(Math.sin(performance.now() / 300)) * 0.2, oven.z - 2);
+}
+
+// ---------- качели, батут, телескоп ----------
+let fun = null; // { id, t } — Лев качается или прыгает
+export const levBusy = () => !!fun;
+export function funAct(id) {
+  if (id === 'telescope') return toast('Днём звёзд не видно. Вечером посмотри в телескоп — покажу созвездие!');
+  if (fun) return;
+  fun = { id, t: 0 };
+  hooks.lev.stop();
+  hooks.lev.root.rotation.y = hooks.lev.targetRot = 0;
+  hooks.lev.play(id === 'swing' ? 'sit' : 'jump');
+}
+function updateFun(dt) {
+  if (!fun) return;
+  const L = hooks.lev, o = decorObjs[fun.id], p = L.root.position;
+  fun.t += dt;
+  if (fun.id === 'trampoline') p.set(o.position.x, 0.55 + Math.abs(Math.sin(fun.t * 3)) * 2.2, o.position.z);
+  else {
+    const a = Math.sin(fun.t * 2.6) * 0.8 * Math.min(1, fun.t / 1.5);
+    o.userData.seat.rotation.x = a;
+    p.set(o.position.x, 2.45 - 1.9 * Math.cos(a) - 0.05, o.position.z + 1.9 * Math.sin(a));
+  }
+  if (fun.t > 6) {
+    if (o.userData.seat) o.userData.seat.rotation.x = 0;
+    p.set(o.position.x, 0, o.position.z + 1.8);
+    L.play('idle');
+    fun = null;
+  }
+}
+
+// Птицы поют, когда Лев рядом со скворечником
+let chirpT = 3;
+function updateBirds(dt) {
+  if (!decorObjs.birdhouse || (chirpT -= dt) > 0) return;
+  chirpT = 5 + Math.random() * 6;
+  const p = hooks.lev.root.position;
+  if (Math.hypot(p.x + 15, p.z - 13) < 12) chirp();
 }
 
 // ---------- награды ----------
@@ -456,7 +623,7 @@ export function actMachine(id) {
   toast(`${m.name} готов к работе! Подойди к открытому полю — внизу появится кнопка.`);
 }
 
-function applyAll() { showMachines(); showDecor(); showYardPets(); for (const id of Object.keys(PENS)) setupPen(id); seedButton(); }
+function applyAll() { showMachines(); showDecor(); showYardPets(); for (const id of Object.keys(PENS)) setupPen(id); setupBakery(); seedButton(); }
 
 // ---------- запуск и кадр ----------
 export function initFarm(sc, h) {
@@ -467,7 +634,7 @@ export function initFarm(sc, h) {
   rebuild();
   let acc = 0;
   onFrame(dt => {
-    updateMachine(dt); updatePens(dt); updateYardPets(dt);
+    updateMachine(dt); updatePens(dt); updateYardPets(dt); updateBakery(); updateFun(dt); updateBirds(dt);
     if ((acc += dt) > 1) { // раз в секунду: стадии роста и панель техники
       acc = 0;
       const sig = PLOTS.map(p => isLocked(p.zone) ? '' : stage(p)[0]).join('');
@@ -485,6 +652,7 @@ export function farmMarkers() {
   const out = [];
   for (const p of PLOTS) if (!isLocked(p.zone) && stage(p) === 'ripe') out.push({ x: p.x, z: p.z, color: '#ffd43b', small: true });
   for (const [id, pen] of Object.entries(pens)) if (penState(id).s === 'ready') out.push({ x: pen.x, z: pen.z, color: '#40c057', small: true });
+  if (oven && ovenReady()) out.push({ x: oven.x, z: oven.z, color: '#40c057', small: true });
   return out;
 }
 

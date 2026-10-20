@@ -10,63 +10,67 @@ const C = CONFIG;
 let hooks;
 const solvedN = () => Object.values(S.tasks).filter(t => t.stars).length;
 
-// Поручение на сегодня: одно и то же весь день, выбирается по дате.
-export function todayChore() {
-  if (S.chore?.day === today()) return S.chore;
-  const list = C.chores.filter(c => solvedN() >= c.need);
-  const d = today().split('-').reduce((a, b) => a * 31 + +b, 7);
-  const c = list[d % list.length];
-  S.chore = { day: today(), id: c.id, n: 0, claimed: false };
+// Поручения на сегодня: одни и те же весь день, выбираются по дате.
+export function todayChores() {
+  if (S.chore?.day === today() && S.chore.items) return S.chore;
+  const list = C.chores.filter(c => solvedN() >= c.need && !(c.id === 'water' && S.decor.includes('autowater')));
+  let d = today().split('-').reduce((a, b) => a * 31 + +b, 7);
+  const items = [];
+  while (items.length < Math.min(C.choresPerDay, list.length)) {
+    const c = list[d % list.length];
+    if (!items.some(x => x.id === c.id)) items.push({ id: c.id, n: 0 });
+    d = d * 7 + 3;
+  }
+  S.chore = { day: today(), items, claimed: false, seen: false };
   save();
   return S.chore;
 }
-const choreDef = ch => C.chores.find(c => c.id === ch.id);
-const choreDone = ch => ch.n >= choreDef(ch).goal;
+const choreDef = it => C.chores.find(c => c.id === it.id);
+const itemDone = it => it.n >= choreDef(it).goal;
+const allDone = () => todayChores().items.every(itemDone);
 
 function progress(id) {
-  const ch = todayChore();
-  if (ch.id !== id || ch.claimed || choreDone(ch)) return;
-  ch.n++;
+  const ch = todayChores(), it = ch.items.find(x => x.id === id);
+  if (!it || ch.claimed || itemDone(it)) return;
+  it.n++;
   save();
-  if (choreDone(ch)) { toast(`Поручение мамы выполнено! Зайди к ней за наградой 🥧`); hooks.onChange(); }
+  if (itemDone(it)) { toast(allDone() ? 'Все поручения мамы выполнены! Зайди к ней за наградой 🥧' : `Поручение выполнено: ${choreDef(it).text.toLowerCase()} ✓`); hooks.onChange(); }
 }
 
 // Куда идти по поручению — для значка над целью и на миникарте. where: id зоны или персонажа.
-const CHORE_GOAL = { harvest: ['🌾', 'beds'], plant: ['🌱', 'beds'], water: ['💧', 'beds'], feed: ['🐔', 'coop'], eggs: ['🥚', 'coop'], sell: ['💰', 'valya'] };
+const CHORE_GOAL = { harvest: ['🌾', 'beds'], plant: ['🌱', 'beds'], water: ['💧', 'beds'], feed: ['🐔', 'coop'], eggs: ['🥚', 'coop'], sell: ['💰', 'valya'],
+  cows: ['🐄', 'barn'], milk: ['🥛', 'barn'], apples: ['🍎', 'garden'], bake: ['🍞', 'bakery'], honey: ['🍯', 'apiary'] };
 export function choreGoal() {
-  const ch = todayChore();
-  if (!ch.seen || ch.claimed || choreDone(ch)) return null;
-  const [icon, where] = CHORE_GOAL[ch.id];
+  const ch = todayChores(), it = ch.items.find(x => !itemDone(x));
+  if (!ch.seen || ch.claimed || !it) return null;
+  const [icon, where] = CHORE_GOAL[it.id];
   return { icon, where: where === 'beds' && isLocked('beds') ? 'strip' : where };
 }
 
-// Мама ждёт: есть новое поручение или награда.
-export const momHasNews = () => { const ch = todayChore(); return !ch.claimed && (choreDone(ch) || !ch.seen); };
+// Мама ждёт: есть новые поручения или награда.
+export const momHasNews = () => { const ch = todayChores(); return !ch.claimed && (allDone() || !ch.seen); };
 
 export async function momTalk() {
-  const ch = todayChore(), def = choreDef(ch);
+  const ch = todayChores(), coins = C.choreCoins * ch.items.length;
   if (ch.claimed) {
-    await talk('mom', ['Спасибо, помощник! Завтра будет новое поручение. А пока — беги решать задачи!']);
-  } else if (choreDone(ch)) {
+    await talk('mom', ['Спасибо, помощник! Завтра будут новые поручения. А пока — беги решать задачи!']);
+  } else if (allDone()) {
     ch.claimed = true;
     emit('chore');
-    S.coins += C.choreCoins;
+    S.coins += coins;
     S.pieUntil = Date.now() + C.pieMinutes * 60000;
     save(); hooks.onChange();
-    await talk('mom', [`Вот спасибо! Держи ${C.choreCoins} монет и пирог. С пирогом ноги сами бегут — ${C.pieMinutes} минуты будешь самым быстрым на ферме!`]);
+    await talk('mom', [`Вот спасибо! Держи ${coins} монет и пирог. С пирогом ноги сами бегут — ${C.pieMinutes} минуты будешь самым быстрым на ферме!`]);
   } else {
     ch.seen = true; save(); hooks.onChange();
-    await talk('mom', [`Поручение на сегодня: ${def.text.toLowerCase()}. Сделано ${ch.n} из ${def.goal}. Потом приходи — испеку пирог!`]);
+    const list = ch.items.map(it => `${itemDone(it) ? '✓' : '•'} ${choreDef(it).text.toLowerCase()} (${Math.min(it.n, choreDef(it).goal)} из ${choreDef(it).goal})`).join('; ');
+    await talk('mom', [`Поручения на сегодня: ${list}. Сделаешь всё — испеку пирог и дам ${coins} монет!`]);
   }
 }
 
 // ---------- бабушка ----------
-// Живёт в саду, когда он открыт. До этого — приезжает на рынок по выходным.
-export function grannyPlace() {
-  if (!isLocked('garden')) return { x: 31.5, z: 5.5 };
-  const d = new Date().getDay();
-  return d === 0 || d === 6 ? { x: -3, z: 30.5 } : null;
-}
+// Живёт в саду, когда он открыт. До этого — у дома рядом с дедушкой.
+export const grannyPlace = () => isLocked('garden') ? { x: -4.6, z: 20.6 } : { x: 31.5, z: 5.5 };
 
 export async function grannyTalk() {
   if (S.grannyGiven !== today()) {
@@ -82,6 +86,7 @@ export function initFamily(h) {
   on('plant', () => progress('plant'));
   on('sell', () => progress('sell'));
   on('water', () => progress('water'));
-  on('feed', id => id === 'coop' && progress('feed'));
-  on('collect', p => p === 'egg' && progress('eggs'));
+  on('feed', id => progress(id === 'coop' ? 'feed' : 'cows'));
+  on('collect', p => progress({ egg: 'eggs', milk: 'milk', apple: 'apples', honey: 'honey' }[p]));
+  on('bake', () => progress('bake'));
 }

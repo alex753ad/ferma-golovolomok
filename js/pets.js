@@ -1,4 +1,5 @@
-// Питомцы, которые ходят за Львом: кошка Сима (с самого начала), собака, козлёнок и конь — за серию дней.
+// Питомцы, которые ходят за Львом: кошка Сима (с самого начала), собака, козлёнок и конь — из магазина.
+// На коне можно ездить верхом.
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { CHESTS } from '../data/tasks.js';
@@ -113,7 +114,7 @@ function setCollar() {
 
 function updateSima(dt) {
   const L = lev.root.position;
-  if (hooks.isEvening()) { sima.goal = { x: -5, z: 17.6 }; } // спит на крыльце
+  if (hooks.isEvening()) { sima.goal = S.decor.includes('cathouse') ? { x: -12.6, z: 13.3 } : { x: -5, z: 17.6 }; } // спит в домике или на крыльце
   // 1) рядом спрятанный сундук — мяукает и бежит к нему
   if (!sima.goal || sima.goalType === 'lead') {
     for (const c of CHESTS) {
@@ -167,10 +168,8 @@ function updateMouse(dt) {
 
 // ---------- запуск ----------
 const petObjs = {};
-function syncStreakPets() {
-  const need = CONFIG.streakPets;
+function syncPets() {
   for (const id of ['dog', 'goat', 'horse']) {
-    if (S.streak.count >= need[id] && !S.pets[id]) { S.pets[id] = true; save(); toast(`Новый друг за ${need[id]} дн. подряд: ${{ dog: 'собака', goat: 'козлёнок', horse: 'конь' }[id]}!`, 4000); }
     if (S.pets[id] && !petObjs[id]) {
       const obj = id === 'dog' ? cube('pets/animal-dog', 0.6) : voxel(id);
       petObjs[id] = addFollower(obj, { dog: 1, goat: 2, horse: 3 }[id]);
@@ -182,14 +181,33 @@ export function initPets(sc, h) {
   scene = sc; hooks = h; lev = h.lev;
   sima = addFollower(cube('pets/animal-cat', 0.55), 0);
   setCollar();
-  syncStreakPets();
-  on('newday', syncStreakPets);
+  syncPets();
   on('collar', setCollar);
+}
+
+// ---------- верхом на коне ----------
+export const hasHorse = () => !!petObjs.horse;
+export function setRiding(on) {
+  S.riding = on && hasHorse(); save();
+  if (!S.riding) { lev.root.position.y = 0; lev.play('idle'); }
+}
+// Конь стоит под Львом, Лев сидит в седле
+function ride(p, dt) {
+  const L = lev.root.position, o = p.obj.root.position, r = lev.root.rotation.y;
+  o.set(L.x + Math.sin(r) * 0.35, 0, L.z + Math.cos(r) * 0.35); // Лев ближе к хвосту, ноги не в шее
+  p.obj.root.rotation.y = r;
+  L.y = 1.2;
+  lev.play('sit');
+  p.obj.update(dt, !!lev.path || lev.joy);
 }
 
 export function updatePets(dt) {
   updateSima(dt);
-  for (const p of followers) if (p !== sima) p.obj.update(dt, follow(p, dt));
+  for (const p of followers) {
+    if (p === sima) continue;
+    if (p === petObjs.horse && S.riding) ride(p, dt);
+    else p.obj.update(dt, follow(p, dt));
+  }
 }
 
-export const refreshPets = () => { setCollar(); syncStreakPets(); };
+export const refreshPets = () => { setCollar(); syncPets(); };
