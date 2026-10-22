@@ -1,7 +1,7 @@
 // Задачи: диалоги NPC, экран задачи, правило попыток, «зови папу», близнецы, звёзды, PIN входа.
 import { TASKS, COINS_BY_STARS } from '../data/tasks.js';
 import { CONFIG } from './config.js';
-import { S, save, today, checkPin } from './save.js';
+import { S, save, today, checkPin, isReview, switchAccount } from './save.js';
 import { face } from './portraits.js';
 import { $, emit } from './ui.js';
 import { sfx, setTheme } from './audio.js';
@@ -183,16 +183,22 @@ function dadCall() {
 }
 
 // ---------- PIN при входе (один раз на устройстве) ----------
-export function pinGate() {
+// Вход по PIN. Обычный PIN — игра Льва, PIN просмотра — аккаунт со всеми задачами и ответами.
+// canBack — «Сменить аккаунт» из настроек (можно передумать).
+export function pinGate(canBack = false) {
   return new Promise(res => {
     open(`<div class="l pin-box">
         <div class="win" style="color:var(--ink)">Ферма Головоломок 🔒</div>
         <div class="q small">Введите PIN, чтобы войти в игру.</div>
         <div class="msg" id="msg"></div>
+        ${canBack ? '<button class="btn" id="back">Назад</button>' : ''}
       </div>
       <div class="pad">${keypad('<button data-k="ok" class="g" aria-label="Готово">✓</button>')}</div>`);
+    if (canBack) $('back').onclick = () => { close(); res(); };
     bindKeys(4, pin => {
-      if (!checkPin(pin)) { $('msg').textContent = 'Неверный PIN'; shake(); return; }
+      const review = checkPin(pin, CONFIG.reviewPinHash);
+      if (!review && !checkPin(pin)) { $('msg').textContent = 'Неверный PIN'; shake(); return; }
+      if (review !== isReview) return switchAccount(review);
       S.pinHash = CONFIG.pinHash; save(); close(); res();
     }, true);
   });

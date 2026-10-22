@@ -12,7 +12,8 @@ import { Actor } from './actor.js';
 import { CameraRig, Joystick } from './controls.js';
 import { Minimap } from './minimap.js';
 import { $, toast, makeLabel, setCamera, emit, on } from './ui.js';
-import { S, save } from './save.js';
+import { S, save, isReview } from './save.js';
+import { setupReview, reviewTalk, reviewChest } from './review.js';
 import { makePortraits } from './portraits.js';
 import { setNameResolver, isOpen, talk } from './dialog.js';
 import { initQuest, tryTask, chat, npcWithTask, currentTask, solvedCount, pinGate } from './quest.js';
@@ -51,7 +52,7 @@ resize();
 initAudio();
 
 // ---------- загрузка ----------
-startSync();
+if (isReview) setupReview(); else startSync(); // аккаунт просмотра не синхронизируется
 await Promise.all([document.fonts.load('700 20px Fredoka'), document.fonts.load('800 20px Nunito'), document.fonts.load('900 20px Nunito')]);
 await loadAll(p => {
   $('loadBar').style.width = Math.round(p * 100) + '%';
@@ -162,7 +163,7 @@ function onTap(cx, cy) {
       if (kind === 'pen') actPen(id);
       else if (kind === 'machine') { if (S.driving) return; if (S.riding) { setRiding(false); refresh(); } actMachine(id); }
       else if (kind === 'sz4') toast(S.items.tractor ? 'Сядь в трактор и подъедь к сеялке — внизу появится «Прицепить СЗ-4».' : 'Сеялка цепляется к трактору. Трактор скоро будет!');
-      else if (kind === 'chest') chestScreen(id);
+      else if (kind === 'chest') (isReview ? reviewChest : chestScreen)(id);
       else if (kind === 'mail') letterScreen();
       else if (kind === 'bake') bakeryScreen();
       else if (kind === 'fun') { if (S.riding) { setRiding(false); refresh(); } setDriving(false); funAct(id); }
@@ -179,6 +180,7 @@ function onTap(cx, cy) {
 
 // Разговор: сюжетная задача → задача дня → дела персонажа → просто болтовня
 async function npcTalk(id) {
+  if (isReview && reviewTalk(id)) return;
   if (tryTask(id)) return;
   const t = currentTask();
   if (t && t.npc === id && !canStartTask()) {

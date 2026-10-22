@@ -1,7 +1,11 @@
 // Сохранение прогресса: localStorage + «код сохранения» для переноса на другое устройство.
 import { CONFIG } from './config.js';
 
-const KEY = 'ferma-golovolomok-v1';
+// Аккаунты: 'main' — игра Льва, 'review' — просмотр всех задач (PIN 2025). Сохранения раздельные.
+const ACC = 'ferma-account';
+export const isReview = (() => { try { return localStorage.getItem(ACC) === 'review'; } catch { return false; } })();
+export function switchAccount(review) { try { localStorage.setItem(ACC, review ? 'review' : 'main'); } catch { /* приватный режим */ } location.reload(); }
+const KEY = isReview ? 'ferma-golovolomok-review' : 'ferma-golovolomok-v1';
 
 function fresh() {
   return {

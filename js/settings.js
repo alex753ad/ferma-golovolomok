@@ -1,5 +1,6 @@
 // Настройки: громкость музыки и звуков, «без звука», качество графики, вход для родителей.
-import { save } from './save.js';
+import { save, isReview } from './save.js';
+import { pinGate } from './quest.js';
 import { settings, setVolume, applyVolumes, sfx } from './audio.js';
 import { askPin } from './day.js';
 import { parentScreen } from './parent.js';
@@ -17,6 +18,7 @@ export function settingsScreen() {
         <div class="li"><span>🖼️ Качество графики<small>${s.quality === 'high' ? 'тени, много травы, сглаживание' : 'быстрее и меньше греет планшет'}</small></span>
           <span class="step"><button class="btn sm ${s.quality === 'high' ? 'y' : ''}" data-q="high">Высокое</button><button class="btn sm ${s.quality === 'economy' ? 'y' : ''}" data-q="economy">Экономное</button></span></div>
         <div class="li"><span>👨 Для папы<small>прогресс, трудности, лимиты, призы</small></span><button class="btn sm" id="parent">Войти по PIN</button></div>
+        <div class="li"><span>🔄 Аккаунт<small>${isReview ? 'просмотр всех задач (PIN 2025)' : 'игра Льва'}</small></span><button class="btn sm" id="acc">Сменить</button></div>
       </div>
     </div><button class="x" id="x" aria-label="Закрыть">✕</button>`, 'market');
   $('x').onclick = close;
@@ -30,4 +32,5 @@ export function settingsScreen() {
     location.reload(); // тени и сглаживание меняются только при запуске
   }));
   $('parent').onclick = () => askPin(() => parentScreen());
+  $('acc').onclick = () => pinGate(true);
 }

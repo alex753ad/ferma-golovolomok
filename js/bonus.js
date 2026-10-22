@@ -1,6 +1,7 @@
 // Дополнительные задачи: задача дня, письма от папы, сундуки с кодовыми замками.
 import * as THREE from 'three';
 import { DAILY, CHESTS } from '../data/tasks.js';
+import { genTask, genId } from '../data/gen.js';
 import { NPCS } from '../data/map.js';
 import { CONFIG } from './config.js';
 import { S, save } from './save.js';
@@ -47,19 +48,21 @@ function winScreen(title, text, sol) {
   $('ok').onclick = close;
 }
 
+// Несюжетная задача по id: готовая (d…) или из шаблона (g…)
+export const taskOf = id => DAILY.find(t => t.id === id) || genTask(id);
+
 // ---------- задача дня ----------
 const DAILY_NPCS = NPCS.filter(n => !['baron', 'grandma'].includes(n.id)).map(n => n.id);
 export function dailyInfo() {
   const d = D();
   if (!d.dailyId) {
-    const unused = DAILY.filter(t => !S.dailyUsed.includes(t.id));
-    const pool = unused.length ? unused : DAILY;
+    const pool = DAILY.filter(t => !S.dailyUsed.includes(t.id));
     const k = d.date.split('-').reduce((a, b) => a * 31 + +b, 3);
-    d.dailyId = pool[k % pool.length].id;
+    d.dailyId = pool.length ? pool[k % pool.length].id : genId(d.date + '-day'); // готовые кончились — из шаблонов
     d.dailyNpc = DAILY_NPCS[k % DAILY_NPCS.length];
     save();
   }
-  return { npc: d.dailyNpc, task: DAILY.find(t => t.id === d.dailyId), settled: !!d.daily };
+  return { npc: d.dailyNpc, task: taskOf(d.dailyId), settled: !!d.daily };
 }
 export const dailyNpc = () => { const i = dailyInfo(); return i.settled ? null : i.npc; };
 
@@ -85,22 +88,24 @@ export function dailyScreen() {
 }
 
 // ---------- задачки от дедушки ----------
-// Вне сюжета: новые задачи (d16 и дальше), каждая один раз. Решённые не попадут и в задачу дня.
+// Вне сюжета: новые задачи (d16 и дальше), каждая один раз, потом — из шаблонов. Не больше CONFIG.grandpaPerDay в день.
 export function grandpaTask() {
+  const d = D(), n = d.grandpa || 0;
+  if (n >= CONFIG.grandpaPerDay) return null;
   const busy = [dailyInfo().task.id, ...Object.values(chestDay().tasks)]; // задача дня и сундуки сегодня — не трогаем
-  return DAILY.slice(15).find(t => !S.dailyUsed.includes(t.id) && !busy.includes(t.id));
+  return DAILY.slice(15).find(t => !S.dailyUsed.includes(t.id) && !busy.includes(t.id)) || taskOf(genId(`${d.date}-gp${n}`));
 }
 export function grandpaScreen() {
   const task = grandpaTask(), coins = CONFIG.grandpaCoins;
   puzzle({
     who: 'grandpa', title: 'Задачка от дедушки 🧓', sub: `Сверх сюжета · ${coins} монет`, q: task.q, a: task.a, hint: task.hint, maxErrors: 2,
     onCorrect: () => {
-      S.dailyUsed.push(task.id); S.coins += coins;
+      S.dailyUsed.push(task.id); S.coins += coins; D().grandpa = (D().grandpa || 0) + 1;
       save(); hooks.onChange();
       winScreen('Дедушка доволен!', `+${coins} <span class="coin"></span>`, task.sol);
     },
     onFail: () => {
-      S.dailyUsed.push(task.id); save(); hooks.onChange();
+      S.dailyUsed.push(task.id); D().grandpa = (D().grandpa || 0) + 1; save(); hooks.onChange();
       open(`<div class="l"><div class="win" style="color:var(--clay)">Не беда!</div>
         <div class="q small">Ответ: ${task.a}. ${T(task.sol)}</div><div class="q small">У дедушки есть ещё задачки.</div>
         <div class="row"><button class="btn g" id="ok">Хорошо</button></div></div>`, 'win-dlg');
@@ -149,11 +154,13 @@ function chestDay() {
   const d = D();
   if (!d.chests) {
     const today = dailyInfo().task.id;
-    let pool = DAILY.filter(t => !S.dailyUsed.includes(t.id) && t.id !== today);
-    if (pool.length < CHESTS.length) pool = DAILY.filter(t => t.id !== today);
+    const pool = DAILY.filter(t => !S.dailyUsed.includes(t.id) && t.id !== today);
     let k = d.date.split('-').reduce((a, b) => a * 31 + +b, 11);
     const tasks = {};
-    for (const c of CHESTS) { const i = k % pool.length; tasks[c.id] = pool.splice(i, 1)[0].id; k = k * 7 + 5; }
+    for (const c of CHESTS) { // готовые кончились — из шаблонов
+      tasks[c.id] = pool.length ? pool.splice(k % pool.length, 1)[0].id : genId(`${d.date}-${c.id}`);
+      k = k * 7 + 5;
+    }
     d.chests = { tasks, open: {} };
     save();
   }
@@ -199,7 +206,7 @@ export function chestScreen(id) {
 function dailyChest(id) {
   const day = chestDay();
   if (day.open[id]) return toast('Сундук уже открыт сегодня. Завтра он снова будет заперт — с новой задачей!');
-  const task = DAILY.find(t => t.id === day.tasks[id]), coins = CONFIG.chestCoins;
+  const task = taskOf(day.tasks[id]), coins = CONFIG.chestCoins;
   const done = () => { day.open[id] = true; S.dailyUsed.push(task.id); chestObjs[id].act?.reset().play(); emit('chest', id); };
   puzzle({
     who: 'lev', title: 'Сундук снова заперт 🔒', sub: `Код замка — ответ · внутри ${coins} монет`, q: task.q, a: task.a, hint: task.hint, maxErrors: 2,

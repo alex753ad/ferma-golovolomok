@@ -13,6 +13,7 @@ export const CONFIG = {
   // PIN-коды хэшем (см. hashPin в save.js): вход в игру и раздел «Для папы»
   pinHash: 'mrjqze',
   dadPinHash: '1p26a74',
+  reviewPinHash: '19fcj1b', // аккаунт просмотра всех задач (PIN 2025)
 
   // Время роста урожая, минуты (полив ускоряет в waterBoost раз)
   growMinutes: { wheat: 3, carrot: 5, sunflower: 15, greenhouse: 30 },
@@ -108,6 +109,7 @@ export const CONFIG = {
   choreCoins: 40,   // за каждое поручение
   daily: { coins: 25 },
   grandpaCoins: 30,       // задачка от дедушки сверх сюжета
+  grandpaPerDay: 5,       // сколько задачек дедушка даёт в день
   chestCoins: 30,         // сундук, открытый повторно (каждый день снова заперт)   // задача дня: монеты (+1 звезда)
   streakCoins: { 3: 100, 7: 250, 14: 500 }, // монеты за серию дней подряд
   pieMinutes: 3,     // пирог: Лев ходит быстрее
