@@ -1,8 +1,8 @@
 // Аккаунт просмотра (PIN 2025): всё открыто, у персонажей — их задачи с ответами и решениями, листаются ◀ ▶.
 import { CONFIG } from './config.js';
 import { ZONES } from '../data/map.js';
-import { TASKS, DAILY, CHESTS } from '../data/tasks.js';
-import { TEMPLATES, genTask } from '../data/gen.js';
+import { TASKS, DAILY, HARD, CHESTS } from '../data/tasks.js';
+import { TEMPLATES, HARD_TEMPLATES, genTask } from '../data/gen.js';
 import { S, save } from './save.js';
 import { open, close, T, esc } from './dialog.js';
 import { face } from './portraits.js';
@@ -30,9 +30,11 @@ const story = id => TASKS.filter(t => t.npc === id).flatMap(t => [
   ...t.twins.map((w, i) => ({ ...w, title: `Задача ${t.id} · похожая ${i + 1}` })),
 ]);
 const others = () => [
+  ...HARD.map(t => ({ ...t, title: `Задача-босс дня ${t.id}` })),
   ...DAILY.map(t => ({ ...t, title: `Задача дня ${t.id}` })),
   ...CHESTS.map(c => ({ ...c, title: `Сундук ${c.id}` })),
-  ...TEMPLATES.map((_, k) => ({ ...genTask(`g${k}-review`), title: `Шаблон ${k + 1} из ${TEMPLATES.length} · числа случайные`, gen: k })),
+  ...HARD_TEMPLATES.map((_, k) => ({ ...genTask(`x${k}-review`), title: `Сложный шаблон ${k + 1} из ${HARD_TEMPLATES.length} · числа случайные`, gen: `x${k}` })),
+  ...TEMPLATES.map((_, k) => ({ ...genTask(`g${k}-review`), title: `Шаблон ${k + 1} из ${TEMPLATES.length} · числа случайные`, gen: `g${k}` })),
 ];
 
 // Нажали на персонажа: true, если показали задачи
@@ -60,5 +62,5 @@ function reviewScreen(who, list, i) {
   $('x').onclick = close;
   $('prev').onclick = () => reviewScreen(who, list, (i - 1 + list.length) % list.length);
   $('next').onclick = () => reviewScreen(who, list, (i + 1) % list.length);
-  if ($('dice')) $('dice').onclick = () => { list[i] = { ...genTask(`g${t.gen}-${Math.random()}`), title: t.title, gen: t.gen }; reviewScreen(who, list, i); };
+  if ($('dice')) $('dice').onclick = () => { list[i] = { ...genTask(`${t.gen}-${Math.random()}`), title: t.title, gen: t.gen }; reviewScreen(who, list, i); };
 }

@@ -1,7 +1,7 @@
 // Проверка ответов всех задач перебором/вычислением.
 // Запуск: node tools/verify-tasks.mjs
-import { TASKS, DAILY, CHESTS } from '../data/tasks.js';
-import { TEMPLATES, genTask } from '../data/gen.js';
+import { TASKS, DAILY, CHESTS, HARD } from '../data/tasks.js';
+import { TEMPLATES, HARD_TEMPLATES, genTask } from '../data/gen.js';
 
 const range = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
 const first = (from, ok) => { for (let n = from; n < 100000; n++) if (ok(n)) return n; };
@@ -63,6 +63,7 @@ for (const t of TASKS) {
 }
 
 // Задачи дня и сундуки: независимое вычисление
+const ds = n => [...String(n)].reduce((a, c) => a + +c, 0);
 const zeros = n => { let z = 0; for (let k = 5; k <= n; k *= 5) z += Math.floor(n / k); return z; };
 // Минутная стрелка обгоняет часовую на 360° каждые 12/11 часа. Считаем моменты совпадения в [0; 24 ч).
 const meets = () => { let c = 0; for (let k = 0; k * 12 / 11 < 24; k++) c++; return c; };
@@ -112,25 +113,47 @@ const EXTRA = {
   d102: range(1, 64).find(p => range(1, 64).some(t => 3 * t + 2 * p === 64 && 2 * t + 3 * p === 66)),
   d103: first(0, x => 5 * x - 3 * (20 - x) === 68), d104: first(1, v => v - v / 2 - v / 2 / 3 === 20),
   d105: first(1, s => range(1, s - 1).some(a => 2 * (s + a) === 20 && 2 * (s + s - a) === 28)),
+  h1: range(1000, 9999).filter(n => ds(n) === 4).length, h2: first(1, n => n % 7 === 0 && [2, 3, 4, 5, 6].every(d => n % d === 1)),
+  h3: range(0, 1440 * 11 - 1).filter(T => T % 360 === 180).length, // T — время в 1/11 минуты, угол между стрелками = T/2 градусов
+  h4: first(1, n => n * 3 === 2 * 15), h5: (() => { const ts = []; for (let a = 1; a <= 36; a++) for (let b = a; b <= 36; b++) for (let c = b; c <= 36; c++) if (a * b * c === 36 && a + b + c === 13) ts.push([a, b, c]); return ts.find(([, b, c]) => c > b)[2]; })(),
+  h6: first(1, n => /^[01]+$/.test(String(n)) && n % 15 === 0), h7: range(100, 999).filter(n => /^[13579]+$/.test(String(n)) && new Set(String(n)).size === 3 && n % 3 === 0).length,
+  h8: (() => { let w = 0; for (let b = 0; b <= 10; b++) for (let c = 0; c <= 4; c++) if (2 * b + 5 * c <= 20) w++; return w; })(), h9: range(1, 8).reduce((s, k) => s + k * k, 0),
+  h10: pairs(4) * pairs(4), h11: (() => { const f = [1, 1, 2]; for (let i = 3; i <= 7; i++) f[i] = f[i - 1] + f[i - 2] + f[i - 3]; return f[7]; })(),
+  h12: range(1, 1000).filter(n => !String(n).includes('7')).length, h13: ds(10n ** 25n - 25n),
+  h14: range(100, 999).filter(n => /^[13579]+$/.test(String(n)) && ds(n) === 15).length, h15: -range(1, 100).reduce((s, k) => s + (k % 2 ? k : -k), 0),
+  h16: range(0, 23).flatMap(h => range(0, 59).map(m => String(h).padStart(2, '0') + String(m).padStart(2, '0'))).filter(t => t === [...t].reverse().join('')).length,
+  h17: first(1000, n => range(2, 9).every(d => n % d === 0)), h18: (s => 3 * s)(first(1, s => 3 * s + 10 === 2 * (s + 10))),
+  h19: range(31, 99).find(n => [2, 3, 4].every(d => n % d === 1) && n % 5 === 0), h20: 30 / (4 + 6) * 15, h21: first(1, L => L * 30 === (L + 400) * 10),
+  h22: range(0, 63).filter(m => m.toString(2).split('1').length - 1 === 3 && m < 64).length, h23: first(2, n => pairs(n) === 45),
+  h24: Math.max(...range(1, 3000).filter(n => Math.floor(n / 13) === n % 13)), h25: range(10, 99).filter(n => n === 4 * ds(n)).length,
+  h26: first(1, n => { const s = n * (n + 1) / 2; return s >= 100 && s <= 999 && new Set(String(s)).size === 1; }), h27: range(1, 360).filter(d => 360 % d === 0).length,
+  h28: first(1, n => ds(n) === 30), h29: range(1, 999).filter(n => ds(n) === 5).length, h30: first(0, x => 40 + x === 10 + x + 6 + x),
+  h31: range(1, 100).filter(n => range(1, n).filter(d => n % d === 0).length % 2).length, h32: range(1, 1000).filter(n => n % 3 === 0 && n % 5).length,
+  h33: range(1000, 9999).filter(n => [...String(n)].every((c, i, a) => !i || c > a[i - 1])).length,
+  h34: Math.min(...range(0, 11).filter(b => (100 - 9 * b) >= 0 && (100 - 9 * b) % 7 === 0).map(b => b + (100 - 9 * b) / 7)),
+  h35: (() => { let w = 0; for (let a = 0; a <= 5; a++) for (let b = 0; a + b <= 5; b++) w++; return w; })(), h36: first(0, k => 1 + 4 * k === 41),
+  h37: Math.max(...range(1, 14).map(a => a * (15 - a))), h38: range(100, 999).filter(n => ds(n) === [...String(n)].reduce((p, c) => p * +c, 1)).length,
+  h39: range(1, 20).reduce((s, a) => s + range(a + 1, 20).filter(b => (a + b) % 2 === 0).length, 0),
+  h40: first(1, n => range(2, 8).every(d => n % d === d - 1)),
   c1: first(1, g => g + g / 12 === 65), c2: zeros(25), c3: Number([1, 3, 5, 7].join('')),
   c4: first(1000, n => new Set(String(n)).size === 4), c5: range(2001, 2099).find(y => String(y) === [...String(y)].reverse().join('')),
 };
 console.log('\nЗадачи дня и сундуки (в файле / проверка):');
-for (const t of [...DAILY, ...CHESTS]) {
+for (const t of [...DAILY, ...HARD, ...CHESTS]) {
   const ok = t.a === EXTRA[t.id];
   if (!ok) bad++;
   console.log(t.id.padStart(3), '|', `${t.a} / ${EXTRA[t.id]} ${ok ? '✓' : '✗'}`);
 }
 // Шаблоны: по 500 случайных задач каждого — ответ совпадает с перебором и лежит в 0–9999
 console.log('\nШаблоны (500 вариантов каждого):');
-TEMPLATES.forEach((_, k) => {
+[...TEMPLATES.map((_, k) => `g${k}`), ...HARD_TEMPLATES.map((_, k) => `x${k}`)].forEach(p => {
   let fails = 0, ex = '';
   for (let i = 0; i < 500; i++) {
-    const t = genTask(`g${k}-test${i}`);
+    const t = genTask(`${p}-test${i}`);
     if (t.a !== t.check || !Number.isInteger(t.a) || t.a < 0 || t.a > 9999) { fails++; ex ||= `${t.q} → ${t.a} / ${t.check}`; }
   }
   if (fails) bad++;
-  console.log(`g${k}`.padStart(3), '|', fails ? `ОШИБКИ ${fails}: ${ex}` : '✓');
+  console.log(p.padStart(3), '|', fails ? `ОШИБКИ ${fails}: ${ex}` : '✓');
 });
 console.log(bad ? `\nОШИБОК: ${bad}` : '\nВсе ответы верны.');
 // node tools/verify-tasks.mjs --md  → таблица в docs/ПРОВЕРКА_ЗАДАЧ.md

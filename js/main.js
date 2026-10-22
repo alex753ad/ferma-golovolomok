@@ -21,7 +21,7 @@ import { initFarm, plotAt, actPlot, actPen, actMachine, grantItem, marketScreen,
 import { initFamily, momTalk, momHasNews, grannyTalk, grannyPlace, grannyHasNews, choreGoal } from './family.js';
 import { initStory, prologue, afterWin } from './story.js';
 import { initDay, D, tickDay, dayPhase, canStartTask, onStorySolved, isEnded, evening } from './day.js';
-import { initBonus, updateBonus, dailyNpc, dailyScreen, letterScreen, chestScreen, chestMarkers, grandpaTask, grandpaScreen } from './bonus.js';
+import { initBonus, updateBonus, dailyNpc, dailyScreen, letterScreen, chestScreen, chestMarkers, grandpaMenu, grandpaHard } from './bonus.js';
 import { initPets, updatePets, refreshPets, hasHorse, setRiding } from './pets.js';
 import { initCollection, collectionScreen, flushPrizes, checkBadges } from './collection.js';
 import { settingsScreen } from './settings.js';
@@ -189,7 +189,7 @@ async function npcTalk(id) {
   if (id === 'valya') { emit('market'); return marketScreen(); }
   if (id === 'mom') return momTalk();
   if (id === 'grandma') return grannyTalk();
-  if (id === 'grandpa' && !(t && t.npc === id) && grandpaTask()) return grandpaScreen();
+  if (id === 'grandpa' && !(t && t.npc === id) && grandpaMenu()) return;
   if (!(t && t.npc === id)) chat(id);
 }
 
@@ -272,7 +272,7 @@ function refresh() {
   for (const a of npcs) {
     a.bang.visible = a.data.id === who;
     a.star.visible = a.data.id === daily && !a.bang.visible;
-    a.news.visible = (a.data.id === 'mom' && momHasNews()) || (a.data.id === 'grandma' && grannyHasNews());
+    a.news.visible = (a.data.id === 'mom' && momHasNews()) || (a.data.id === 'grandma' && grannyHasNews()) || (a.data.id === 'grandpa' && !!grandpaHard());
     if (a.bang.visible || a.star.visible) a.news.visible = false;
   }
 }

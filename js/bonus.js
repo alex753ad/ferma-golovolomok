@@ -1,7 +1,7 @@
 // Дополнительные задачи: задача дня, письма от папы, сундуки с кодовыми замками.
 import * as THREE from 'three';
-import { DAILY, CHESTS } from '../data/tasks.js';
-import { genTask, genId } from '../data/gen.js';
+import { DAILY, HARD, CHESTS } from '../data/tasks.js';
+import { genTask, genId, genHardId } from '../data/gen.js';
 import { NPCS } from '../data/map.js';
 import { CONFIG } from './config.js';
 import { S, save } from './save.js';
@@ -49,7 +49,7 @@ function winScreen(title, text, sol) {
 }
 
 // Несюжетная задача по id: готовая (d…) или из шаблона (g…)
-export const taskOf = id => DAILY.find(t => t.id === id) || genTask(id);
+export const taskOf = id => DAILY.find(t => t.id === id) || HARD.find(t => t.id === id) || genTask(id);
 
 // ---------- задача дня ----------
 const DAILY_NPCS = NPCS.filter(n => !['baron', 'grandma'].includes(n.id)).map(n => n.id);
@@ -112,6 +112,52 @@ export function grandpaScreen() {
       $('ok').onclick = close;
     },
   });
+}
+
+// ---------- задача-босс дня от дедушки ----------
+// Одна в день, посложнее: сначала готовые HARD, потом сложные шаблоны.
+export function grandpaHard() {
+  const d = D();
+  if (d.hardDone) return null;
+  if (!d.hardId) { d.hardId = HARD.find(t => !S.dailyUsed.includes(t.id))?.id || genHardId(d.date + '-hard'); save(); }
+  return taskOf(d.hardId);
+}
+function grandpaHardScreen() {
+  const task = grandpaHard(), { coins, stars } = CONFIG.grandpaHard;
+  const end = how => { D().hardDone = how; S.dailyUsed.push(task.id); };
+  puzzle({
+    who: 'grandpa', title: 'Задача-босс от дедушки 🏆', sub: `Одна в день · ${coins} монет и ${stars} ⭐`, q: task.q, a: task.a, hint: task.hint, maxErrors: 3,
+    onCorrect: () => {
+      end('done'); S.coins += coins; S.stars += stars;
+      save(); hooks.onChange();
+      winScreen('Вот это голова!', `+${coins} <span class="coin"></span> · +${stars} ⭐`, task.sol);
+    },
+    onFail: () => {
+      end('failed'); save(); hooks.onChange();
+      open(`<div class="l"><div class="win" style="color:var(--clay)">Крепкий орешек!</div>
+        <div class="q small">Ответ: ${task.a}. ${T(task.sol)}</div><div class="q small">Завтра будет новая задача-босс.</div>
+        <div class="row"><button class="btn g" id="ok">Хорошо</button></div></div>`, 'win-dlg');
+      $('ok').onclick = close;
+    },
+  });
+}
+
+// Дедушка: обычные задачки и задача-босс дня. false — сегодня задач у него нет.
+export function grandpaMenu() {
+  const easy = grandpaTask(), hard = grandpaHard();
+  if (!easy && !hard) return false;
+  if (!easy || !hard) { (hard ? grandpaHardScreen : grandpaScreen)(); return true; }
+  const left = CONFIG.grandpaPerDay - (D().grandpa || 0);
+  open(`<div class="l">
+      <div class="who">${face('grandpa')}<div><b>${esc(CONFIG.names.grandpa)}</b><span>Задачки сверх сюжета</span></div></div>
+      <div class="q">${T('Ну что, {lev}, пошевелим мозгами? Есть обычная задачка, а есть задача-босс дня — посложнее, зато и награда больше!')}</div>
+      <div class="row"><button class="btn y" id="easy">Обычная · ${CONFIG.grandpaCoins} <span class="coin"></span> (ещё ${left})</button>
+        <button class="btn g" id="hard">🏆 Задача-босс · ${CONFIG.grandpaHard.coins} <span class="coin"></span> + ⭐</button></div>
+    </div><button class="x" id="x" aria-label="Закрыть">✕</button>`, 'market');
+  $('x').onclick = close;
+  $('easy').onclick = grandpaScreen;
+  $('hard').onclick = grandpaHardScreen;
+  return true;
 }
 
 // ---------- письма от папы ----------

@@ -1,8 +1,8 @@
 // Собирает docs/ОТВЕТЫ_И_РЕШЕНИЯ.md — ответы и решения всех задач игры (для папы).
 // Запуск: node tools/answers-md.mjs
 import fs from 'fs';
-import { TASKS, DAILY, CHESTS } from '../data/tasks.js';
-import { TEMPLATES, genTask } from '../data/gen.js';
+import { TASKS, DAILY, HARD, CHESTS } from '../data/tasks.js';
+import { TEMPLATES, HARD_TEMPLATES, genTask } from '../data/gen.js';
 
 const CHAPTERS = { 1: 'Новый хозяин', 6: 'Кто сломал трактор?', 11: 'Тайна мельницы', 16: 'Большая ярмарка' };
 const WHO = { grandpa: 'Дедушка Сергей', valya: 'Тётя Валя', beekeeper: 'Пасечник', petrovich: 'Механик Петрович', miller: 'Мельник' };
@@ -18,9 +18,13 @@ for (const t of TASKS) {
 }
 md += '\n---\n\n# Задачи дня\n\nОдна в день у случайного персонажа. d16–d45 — посложнее.\n';
 for (const t of DAILY) md += '\n' + block(`## ${t.id}`, t);
+md += '\n---\n\n# Задачи-боссы дня (у дедушки)\n\nОдна в день, посложнее.\n';
+for (const t of HARD) md += '\n' + block(`## ${t.id}`, t);
 md += '\n---\n\n# Загадки сундуков\n\nКод замка — ответ на загадку.\n';
 for (const t of CHESTS) md += '\n' + block(`## Сундук ${t.id}`, t);
 md += `\n---\n\n# Шаблоны (числа случайные)\n\nКогда готовые задачи дня кончаются, игра берёт задачи из ${TEMPLATES.length} шаблонов. Ниже — по одному примеру каждого.\n`;
 TEMPLATES.forEach((_, k) => { md += '\n' + block(`## Шаблон ${k + 1}`, genTask(`g${k}-example`)); });
+md += `\n## Сложные шаблоны (для задачи-босса дня)\n`;
+HARD_TEMPLATES.forEach((_, k) => { md += '\n' + block(`### Сложный шаблон ${k + 1}`, genTask(`x${k}-example`)); });
 fs.writeFileSync(new URL('../docs/ОТВЕТЫ_И_РЕШЕНИЯ.md', import.meta.url), md);
 console.log('docs/ОТВЕТЫ_И_РЕШЕНИЯ.md:', md.length, 'символов');
