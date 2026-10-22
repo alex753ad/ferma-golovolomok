@@ -642,7 +642,7 @@ function updateDrive() {
   const L = hooks.lev, p = L.root.position;
   t.position.set(p.x, 0, p.z); t.rotation.y = L.root.rotation.y;
   picks.tractor.position.set(p.x, 1.1, p.z);
-  p.y = 0.75; L.play('drive');
+  p.y = 0.62; L.play('drive');
   // работа в поле: трактор пашет, СЗ-4 сеет полосу шириной 2 грядки
   const pl = plotAt(p.x, p.z);
   if (pl && stage(pl) === 'wild') actPlot(pl, true);

@@ -76,7 +76,7 @@ makePortraits({
 });
 
 // ---------- персонажи ----------
-const lev = new Actor('character-male-d', { hat: S.hat || 'cap', look: 'lev' });
+const lev = new Actor('character-male-d', { hat: S.hat || 'cap', look: 'lev', height: 1.35 });
 lev.speed = CONFIG.walkSpeed;
 lev.root.position.set(SPAWN.x, 0, SPAWN.z);
 lev.root.rotation.y = Math.PI;

@@ -43,14 +43,14 @@ export const BUILDINGS = [
 
 // Персонажи. model — файл из assets/models/chars, look — внешность из js/looks.js.
 export const NPCS = [
-  { id: 'grandpa',  name: 'Дедушка Сергей',  model: 'character-male-b',   x: -3,  z: 19,  rot: 0.6,  hat: 'capBrown', look: 'grandpa' },
+  { id: 'grandpa',  name: 'Дедушка Сергей',  model: 'character-male-b',   x: -3,  z: 19,  rot: 0.6,  hat: 'topBrown', look: 'grandpa' },
   { id: 'mom',      name: 'Мама Аня',        model: 'character-female-f', x: -6,  z: 18.5, rot: 0.2, look: 'mom' },
-  { id: 'petrovich',name: 'Механик Петрович',model: 'character-male-e',   x: 10.5,z: 18.5, rot: -0.5 },
-  { id: 'valya',    name: 'Тётя Валя',       model: 'character-female-f', x: 3,   z: 31,  rot: -0.8 },
-  { id: 'miller',   name: 'Мельник',         model: 'character-male-a',   x: -26, z: -12, rot: 1.3 },
-  { id: 'beekeeper',name: 'Пасечник',        model: 'character-male-c',   x: 22,  z: 22.5, rot: 0,   hat: 'bee' },
+  { id: 'petrovich',name: 'Механик Петрович',model: 'character-male-e',   x: 10.5,z: 18.5, rot: -0.5, look: 'petrovich' },
+  { id: 'valya',    name: 'Тётя Валя',       model: 'character-female-f', x: 3,   z: 31,  rot: -0.8, look: 'valya' },
+  { id: 'miller',   name: 'Мельник',         model: 'character-male-a',   x: -26, z: -12, rot: 1.3, look: 'miller' },
+  { id: 'beekeeper',name: 'Пасечник',        model: 'character-male-c',   x: 22,  z: 22.5, rot: 0,   hat: 'bee', look: 'beekeeper' },
   { id: 'grandma',  name: 'Бабушка Оля',     model: 'character-female-c', x: -3,  z: 30.5, rot: 0.6, look: 'grandma' },
-  { id: 'baron',    name: 'Барон Хапкин',    model: 'character-male-d',   x: 7,   z: -31, rot: 0,   hat: 'top' },
+  { id: 'baron',    name: 'Барон Хапкин',    model: 'character-male-d',   x: 7,   z: -31, rot: 0,   hat: 'top', look: 'baron' },
 ];
 
 // Цвет точки NPC на миникарте

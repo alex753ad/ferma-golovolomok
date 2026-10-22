@@ -8,8 +8,9 @@ export class Actor {
   constructor(model, { height = 1.7, hat, look } = {}) {
     const key = model.includes('/') ? model : 'chars/' + model;
     this.root = new THREE.Group();
-    this.body = fitHeight(cloneModel(key), height);
-    if (look) applyLook(this.body, look);
+    const body = cloneModel(key);
+    if (look) applyLook(body, look);
+    this.body = fitHeight(body, height);
     this.root.add(this.body);
     this.mixer = new THREE.AnimationMixer(this.body);
     this.actions = {};
@@ -159,8 +160,9 @@ function addHat(body, kind) {
     m.position.set(0, -0.245, 0.175);
     g.add(m);
     g.position.y = 0.3;
-  } else if (kind === 'top') {
-    g.add(cyl(0.32, 0.02, '#212529'), cyl(0.2, 0.34, '#212529', 0.17), cyl(0.205, 0.06, '#7048e8', 0.04));
+  } else if (kind === 'top' || kind === 'topBrown') {
+    const [c, band] = kind === 'top' ? ['#212529', '#7048e8'] : ['#6b4528', '#4a2f1a'];
+    g.add(cyl(0.32, 0.02, c), cyl(0.2, 0.34, c, 0.17), cyl(0.205, 0.06, band, 0.04));
     g.position.y = 0.31;
   }
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });

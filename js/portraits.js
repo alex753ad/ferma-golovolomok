@@ -17,8 +17,8 @@ export function makePortraits(defs) {
   key.position.set(1, 2, 3);
   scene.add(key);
   const cam = new THREE.PerspectiveCamera(24, 1, 0.1, 20);
-  cam.position.set(0.35, 1.45, 3.1);
-  cam.lookAt(0, 1.22, 0);
+  cam.position.set(0.3, 1.5, 2.9);
+  cam.lookAt(0, 1.4, 0);
 
   for (const [id, d] of Object.entries(defs)) {
     if (DRAWN.includes(id)) continue;
