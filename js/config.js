@@ -104,7 +104,8 @@ export const CONFIG = {
   ],
   choresPerDay: 2,
   choreCoins: 40,   // за каждое поручение
-  daily: { coins: 25 },   // задача дня: монеты (+1 звезда)
+  daily: { coins: 25 },
+  grandpaCoins: 30,       // задачка от дедушки сверх сюжета   // задача дня: монеты (+1 звезда)
   streakCoins: { 3: 100, 7: 250, 14: 500 }, // монеты за серию дней подряд
   pieMinutes: 3,     // пирог: Лев ходит быстрее
   pieSpeed: 1.5,

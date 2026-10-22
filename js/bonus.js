@@ -84,6 +84,31 @@ export function dailyScreen() {
   });
 }
 
+// ---------- задачки от дедушки ----------
+// Вне сюжета: новые задачи (d16 и дальше), каждая один раз. Решённые не попадут и в задачу дня.
+export function grandpaTask() {
+  const today = dailyInfo().task.id;
+  return DAILY.slice(15).find(t => !S.dailyUsed.includes(t.id) && t.id !== today);
+}
+export function grandpaScreen() {
+  const task = grandpaTask(), coins = CONFIG.grandpaCoins;
+  puzzle({
+    who: 'grandpa', title: 'Задачка от дедушки 🧓', sub: `Сверх сюжета · ${coins} монет`, q: task.q, a: task.a, hint: task.hint, maxErrors: 2,
+    onCorrect: () => {
+      S.dailyUsed.push(task.id); S.coins += coins;
+      save(); hooks.onChange();
+      winScreen('Дедушка доволен!', `+${coins} <span class="coin"></span>`, task.sol);
+    },
+    onFail: () => {
+      S.dailyUsed.push(task.id); save(); hooks.onChange();
+      open(`<div class="l"><div class="win" style="color:var(--clay)">Не беда!</div>
+        <div class="q small">Ответ: ${task.a}. ${T(task.sol)}</div><div class="q small">У дедушки есть ещё задачки.</div>
+        <div class="row"><button class="btn g" id="ok">Хорошо</button></div></div>`, 'win-dlg');
+      $('ok').onclick = close;
+    },
+  });
+}
+
 // ---------- письма от папы ----------
 export const dadLetter = () => S.dadTasks.find(t => !t.done);
 let mailSign;
