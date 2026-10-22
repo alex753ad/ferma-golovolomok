@@ -87,8 +87,8 @@ export function dailyScreen() {
 // ---------- задачки от дедушки ----------
 // Вне сюжета: новые задачи (d16 и дальше), каждая один раз. Решённые не попадут и в задачу дня.
 export function grandpaTask() {
-  const today = dailyInfo().task.id;
-  return DAILY.slice(15).find(t => !S.dailyUsed.includes(t.id) && t.id !== today);
+  const busy = [dailyInfo().task.id, ...Object.values(chestDay().tasks)]; // задача дня и сундуки сегодня — не трогаем
+  return DAILY.slice(15).find(t => !S.dailyUsed.includes(t.id) && !busy.includes(t.id));
 }
 export function grandpaScreen() {
   const task = grandpaTask(), coins = CONFIG.grandpaCoins;
@@ -143,6 +143,24 @@ export const CHEST_REWARDS = {
 };
 const chestObjs = {};
 
+// Каждый день все сундуки снова заперты. Первый раз — своя загадка и приз,
+// потом — задача из несюжетных (задачи дня) и CONFIG.chestCoins монет.
+function chestDay() {
+  const d = D();
+  if (!d.chests) {
+    const today = dailyInfo().task.id;
+    let pool = DAILY.filter(t => !S.dailyUsed.includes(t.id) && t.id !== today);
+    if (pool.length < CHESTS.length) pool = DAILY.filter(t => t.id !== today);
+    let k = d.date.split('-').reduce((a, b) => a * 31 + +b, 11);
+    const tasks = {};
+    for (const c of CHESTS) { const i = k % pool.length; tasks[c.id] = pool.splice(i, 1)[0].id; k = k * 7 + 5; }
+    d.chests = { tasks, open: {} };
+    save();
+  }
+  return d.chests;
+}
+export const chestClosed = id => S.chests[id] ? !chestDay().open[id] : true;
+
 function placeChests() {
   for (const c of CHESTS) {
     const o = fitHeight(cloneModel('surv/chest'), 0.7);
@@ -154,7 +172,7 @@ function placeChests() {
     const act = clip && mixer.clipAction(clip);
     if (act) { act.setLoop(THREE.LoopOnce, 1); act.clampWhenFinished = true; }
     chestObjs[c.id] = { o, mixer, act };
-    if (S.chests[c.id] && act) { act.play(); mixer.update(5); }
+    if (!chestClosed(c.id) && act) { act.play(); mixer.update(5); }
     blockRect(c.x, c.z, 0.9, 0.9);
     addPick(c.x, c.z, 1.1, 1.4, { type: 'object', id: 'chest:' + c.id, name: 'Сундук' });
   }
@@ -162,11 +180,11 @@ function placeChests() {
 
 export function chestScreen(id) {
   const c = CHESTS.find(x => x.id === id), r = CHEST_REWARDS[c.reward];
-  if (S.chests[id]) return toast(`Сундук пуст — внутри был ${T(r.name).toLowerCase()}.`);
+  if (S.chests[id]) return dailyChest(id);
   puzzle({
     who: 'lev', title: 'Сундук с кодовым замком 🔒', sub: 'Код замка — ответ на загадку', q: c.q, a: c.a, hint: c.hint, freeHint: true,
     onCorrect: () => {
-      S.chests[id] = true;
+      S.chests[id] = true; chestDay().open[id] = true;
       if (c.reward === 'coins') S.coins += 150;
       if (c.reward === 'hat') S.hat = 'cowboy';
       save(); hooks.onChange(); hooks.onChest(c.reward); emit('chest', id);
@@ -176,7 +194,29 @@ export function chestScreen(id) {
     },
   });
 }
-export const chestMarkers = () => CHESTS.filter(c => !S.chests[c.id]);
+
+// Повторное открытие: задача из несюжетных, раз в день
+function dailyChest(id) {
+  const day = chestDay();
+  if (day.open[id]) return toast('Сундук уже открыт сегодня. Завтра он снова будет заперт — с новой задачей!');
+  const task = DAILY.find(t => t.id === day.tasks[id]), coins = CONFIG.chestCoins;
+  const done = () => { day.open[id] = true; S.dailyUsed.push(task.id); chestObjs[id].act?.reset().play(); emit('chest', id); };
+  puzzle({
+    who: 'lev', title: 'Сундук снова заперт 🔒', sub: `Код замка — ответ · внутри ${coins} монет`, q: task.q, a: task.a, hint: task.hint, maxErrors: 2,
+    onCorrect: () => {
+      done(); S.coins += coins; save(); hooks.onChange();
+      winScreen('Замок открыт!', `Внутри: +${coins} <span class="coin"></span>`, task.sol);
+    },
+    onFail: () => {
+      done(); save(); hooks.onChange();
+      open(`<div class="l"><div class="win" style="color:var(--clay)">Замок заклинило!</div>
+        <div class="q small">Код был ${task.a}. ${T(task.sol)}</div><div class="q small">Завтра сундук снова будет заперт.</div>
+        <div class="row"><button class="btn g" id="ok">Хорошо</button></div></div>`, 'win-dlg');
+      $('ok').onclick = close;
+    },
+  });
+}
+export const chestMarkers = () => CHESTS.filter(c => chestClosed(c.id));
 
 export function initBonus(sc, h) {
   scene = sc; hooks = h;

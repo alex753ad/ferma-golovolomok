@@ -75,6 +75,7 @@ export const CONFIG = {
     { id: 'fountain',   name: 'Фонтан',            icon: '⛲', cost: 800 },
     { id: 'drone',      name: 'Кепка-дрон',        icon: '🚁', cost: 900,  hat: true },
     { id: 'balloon',    name: 'Воздушный шар',     icon: '🎈', cost: 1500 },
+    { id: 'sz4',        name: 'Сеялка СЗ-4 — цепляется к трактору', icon: '🌱', cost: 800 },
     { id: 'paint-red',   name: 'Покрасить трактор: красный', icon: '🟥', cost: 200, paint: '#e03131' },
     { id: 'paint-blue',  name: 'Покрасить трактор: синий',   icon: '🟦', cost: 200, paint: '#1c7ed6' },
     { id: 'paint-green', name: 'Покрасить трактор: зелёный', icon: '🟩', cost: 200, paint: '#2f9e44' },
@@ -86,6 +87,7 @@ export const CONFIG = {
   ],
   bikeSpeed: 1.3,    // велосипед: Лев ходит быстрее
   horseSpeed: 1.8,   // верхом на коне
+  tractorSpeed: 1.6, // за рулём трактора
   balloonDist: 40,   // с воздушным шаром камеру можно отодвинуть дальше
 
   // Поручения мамы (без математики). need — с какой задачи доступно. Каждый день — choresPerDay разных.
@@ -105,7 +107,8 @@ export const CONFIG = {
   choresPerDay: 2,
   choreCoins: 40,   // за каждое поручение
   daily: { coins: 25 },
-  grandpaCoins: 30,       // задачка от дедушки сверх сюжета   // задача дня: монеты (+1 звезда)
+  grandpaCoins: 30,       // задачка от дедушки сверх сюжета
+  chestCoins: 30,         // сундук, открытый повторно (каждый день снова заперт)   // задача дня: монеты (+1 звезда)
   streakCoins: { 3: 100, 7: 250, 14: 500 }, // монеты за серию дней подряд
   pieMinutes: 3,     // пирог: Лев ходит быстрее
   pieSpeed: 1.5,

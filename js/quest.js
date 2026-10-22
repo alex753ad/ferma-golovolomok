@@ -67,7 +67,10 @@ async function startTask(id, t) {
 export async function chat(id) {
   const t = currentTask();
   const lines = CHAT[id] || ['Привет!'];
-  const tip = t ? ` Кстати, тебя ждёт ${hooks.npcName(t.npc)} — ищи «!» на карте.` : '';
+  // куда идти: к тому, у кого следующая задача, — но только если на сегодня задачи ещё остались
+  const tip = !t ? '' : !hooks.canStart || hooks.canStart(t)
+    ? ` Кстати, тебя ждёт ${hooks.npcName(t.npc)} — ищи «!» на карте.`
+    : ` На сегодня задачи кончились. Завтра тебя ждёт ${hooks.npcName(t.npc)}.`;
   await talk(id, [lines[Math.floor(Math.random() * lines.length)] + (id === 'baron' ? '' : tip)]);
 }
 

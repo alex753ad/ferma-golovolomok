@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
 import { CHESTS } from '../data/tasks.js';
+import { chestClosed } from './bonus.js';
 import { ZONES } from '../data/map.js';
 import { S, save } from './save.js';
 import { Actor } from './actor.js';
@@ -114,11 +115,11 @@ function setCollar() {
 
 function updateSima(dt) {
   const L = lev.root.position;
-  if (hooks.isEvening()) { sima.goal = S.decor.includes('cathouse') ? { x: -12.6, z: 13.3 } : { x: -5, z: 17.6 }; } // спит в домике или на крыльце
+  if (hooks.isEvening()) { sima.goal = S.decor.includes('cathouse') ? { x: 26, z: 34.7 } : { x: -5, z: 17.6 }; } // спит в домике или на крыльце
   // 1) рядом спрятанный сундук — мяукает и бежит к нему
   if (!sima.goal || sima.goalType === 'lead') {
     for (const c of CHESTS) {
-      if (S.chests[c.id] || chestNotified[c.id] > performance.now()) continue;
+      if (!chestClosed(c.id) || chestNotified[c.id] > performance.now()) continue;
       if (Math.hypot(c.x - L.x, c.z - L.z) < 12) {
         chestNotified[c.id] = performance.now() + 60000;
         sima.goal = { x: c.x + 0.8, z: c.z + 0.8 }; sima.goalType = 'chest'; sima.goalUntil = performance.now() + 15000;

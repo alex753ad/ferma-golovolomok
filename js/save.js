@@ -30,6 +30,10 @@ function fresh() {
     pets: {},            // купленные питомцы: { dog, goat, horse }
     riding: false,       // Лев верхом на коне
     oven: null,          // пекарня: { id, readyAt }
+    driving: false,      // Лев за рулём трактора
+    tractorAt: null,     // где стоит трактор: { x, z, rot } (null — у гаража)
+    sz4At: null,         // где стоит сеялка СЗ-4
+    hitched: false,      // СЗ-4 прицеплена к трактору
     chests: {},          // открытые сундуки
     dailyUsed: [],       // какие задачи дня уже были
     dadTasks: [],        // задачи от папы: { q, a, hint, done }

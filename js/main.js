@@ -16,7 +16,7 @@ import { S, save } from './save.js';
 import { makePortraits } from './portraits.js';
 import { setNameResolver, isOpen, talk } from './dialog.js';
 import { initQuest, tryTask, chat, npcWithTask, currentTask, solvedCount, pinGate } from './quest.js';
-import { initFarm, plotAt, actPlot, actPen, actMachine, grantItem, marketScreen, onZoneOpened, farmMarkers, bakeryScreen, funAct, levBusy } from './farm.js';
+import { initFarm, plotAt, actPlot, actPen, actMachine, grantItem, marketScreen, onZoneOpened, farmMarkers, bakeryScreen, funAct, levBusy, setDriving } from './farm.js';
 import { initFamily, momTalk, momHasNews, grannyTalk, grannyPlace, grannyHasNews, choreGoal } from './family.js';
 import { initStory, prologue, afterWin } from './story.js';
 import { initDay, D, tickDay, dayPhase, canStartTask, onStorySolved, isEnded, evening } from './day.js';
@@ -160,11 +160,12 @@ function onTap(cx, cy) {
       lev.lookAt(o.x, o.z); lev.once('interact-right');
       const [kind, id] = u.id.split(':');
       if (kind === 'pen') actPen(id);
-      else if (kind === 'machine') actMachine(id);
+      else if (kind === 'machine') { if (S.driving) return; if (S.riding) { setRiding(false); refresh(); } actMachine(id); }
+      else if (kind === 'sz4') toast(S.items.tractor ? 'Сядь в трактор и подъедь к сеялке — внизу появится «Прицепить СЗ-4».' : 'Сеялка цепляется к трактору. Трактор скоро будет!');
       else if (kind === 'chest') chestScreen(id);
       else if (kind === 'mail') letterScreen();
       else if (kind === 'bake') bakeryScreen();
-      else if (kind === 'fun') { if (S.riding) { setRiding(false); refresh(); } funAct(id); }
+      else if (kind === 'fun') { if (S.riding) { setRiding(false); refresh(); } setDriving(false); funAct(id); }
       else toast(u.name);
     });
     return;
@@ -208,17 +209,17 @@ function joyMove(dt) {
   else if (isFree(p.x + ux * s, p.z)) p.x += ux * s; // скользим вдоль препятствия
   else if (isFree(p.x, p.z + uz * s)) p.z += uz * s;
   lev.targetRot = Math.atan2(ux, uz);
-  if (!S.riding) lev.play(lev.speed > 4.6 ? 'sprint' : 'walk'); // верхом Лев сидит
+  if (!S.riding && !S.driving) lev.play(lev.speed > 4.6 ? 'sprint' : 'walk'); // верхом и за рулём Лев сидит
 }
 
 // Кнопка «верхом на коне»
-$('rideBtn').onclick = () => { setRiding(!S.riding); refresh(); };
+$('rideBtn').onclick = () => { setDriving(false); setRiding(!S.riding); refresh(); };
 
 // Насколько близко закрытый сундук (для огонька кепки-дрона): 0 — далеко, 1 — рядом
 function chestAlert() {
   const p = lev.root.position;
   let d = Infinity;
-  for (const c of CHESTS) if (!S.chests[c.id]) d = Math.min(d, Math.hypot(p.x - c.x, p.z - c.z));
+  for (const c of chestMarkers()) d = Math.min(d, Math.hypot(p.x - c.x, p.z - c.z));
   return d < 15 ? 1 - d / 15 : 0;
 }
 
@@ -361,7 +362,7 @@ let stepT = 0, slow = 0, frames = 0, fpsT = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
   if (!document.hidden) { S.playSeconds += dt; tickDay(dt); }
-  lev.speed = CONFIG.walkSpeed * (S.pieUntil > Date.now() ? CONFIG.pieSpeed : 1) * (S.riding ? CONFIG.horseSpeed : S.decor.includes('bike') ? CONFIG.bikeSpeed : 1);
+  lev.speed = CONFIG.walkSpeed * (S.pieUntil > Date.now() ? CONFIG.pieSpeed : 1) * (S.driving ? CONFIG.tractorSpeed : S.riding ? CONFIG.horseSpeed : S.decor.includes('bike') ? CONFIG.bikeSpeed : 1);
   joyMove(dt);
   lev.update(dt);
   lev.hat?.userData.tick?.(dt, !!lev.path || lev.joy, chestAlert());

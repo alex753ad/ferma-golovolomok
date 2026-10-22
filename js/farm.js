@@ -126,7 +126,7 @@ const MACHINES = {
   combine: { model: 'cars/tractor-shovel', h: 2.2, x: 15.5, z: 13, rot: -1.2, name: 'Комбайн' },
   truck:   { model: 'cars/truck', h: 2.2, x: 16, z: 19.5, rot: -0.4, name: 'Грузовик' },
 };
-const parked = {};
+const parked = {}, picks = {};
 let tractorBody = [];
 
 function makeMachine(id) {
@@ -145,10 +145,11 @@ function showMachines() {
     const have = id === 'tractor' || S.items[id]; // старый трактор стоит с самого начала (сломанный)
     if (!have || parked[id]) continue;
     const m = MACHINES[id], o = makeMachine(id);
-    o.position.set(m.x, 0, m.z); o.rotation.y = m.rot;
+    const at = id === 'tractor' && S.tractorAt || { x: m.x, z: m.z, rot: m.rot }; // трактор стоит там, где Лев из него вышел
+    o.position.set(at.x, 0, at.z); o.rotation.y = at.rot;
     scene.add(o); parked[id] = o;
-    blockRect(m.x, m.z, 2.6, 2.6);
-    addPick(m.x, m.z, 1.6, 2.2, { type: 'object', id: 'machine:' + id, name: m.name });
+    if (at.x === m.x && at.z === m.z) blockRect(m.x, m.z, 2.6, 2.6);
+    picks[id] = addPick(at.x, at.z, 1.6, 2.2, { type: 'object', id: 'machine:' + id, name: m.name });
   }
   // покраска трактора: тонируем только кузов
   if (parked.tractor) {
@@ -219,6 +220,14 @@ function levZone() {
 
 let barKey = '';
 function updateBar() {
+  if (S.driving) {
+    const acts = driveActions(), key = 'drive' + acts.map(a => a.id).join();
+    if (key === barKey) return;
+    barKey = key;
+    $('farmBar').innerHTML = acts.map(a => `<button class="btn g" data-d="${a.id}">${a.label}</button>`).join('');
+    $('farmBar').querySelectorAll('button').forEach(b => (b.onclick = () => { driveAct(b.dataset.d); barKey = ''; }));
+    return;
+  }
   const zid = run ? null : levZone();
   const acts = zid ? machineActions(zid) : [];
   const key = zid + acts.map(a => a.id).join();
@@ -350,7 +359,7 @@ function showDecor() {
       const g = new THREE.Group();
       g.add(m(B(0.12, 2, 0.12), '#7a4b24', 0, 1, 0), m(B(1.4, 0.1, 0.1), '#7a4b24', 0, 1.5, 0), m(B(0.6, 0.7, 0.3), '#e03131', 0, 1.35, 0),
         m(new THREE.SphereGeometry(0.25, 10, 8), '#f1d6a0', 0, 2.05, 0), m(new THREE.CylinderGeometry(0.45, 0.45, 0.04, 16), '#e9c46a', 0, 2.25, 0));
-      g.position.set(-21.5, 0, 11); blockRect(-21.5, 11, 1, 1); return g;
+      g.position.set(34, 0, 30); blockRect(34, 30, 1, 1); return g;
     },
     flowerbed() {
       const g = new THREE.Group();
@@ -358,13 +367,13 @@ function showDecor() {
       ['#ff6b6b', '#ffd43b', '#da77f2', '#ffffff', '#ff922b', '#74c0fc'].forEach((c, i) => {
         const a = i / 6 * 6.28; g.add(m(new THREE.SphereGeometry(0.16, 8, 6), c, Math.cos(a) * 0.55, 0.45, Math.sin(a) * 0.55));
       });
-      g.position.set(-10, 0, 19.2); blockRect(-10, 19.2, 2.2, 2.2); return g;
+      g.position.set(34, 0, 34); blockRect(34, 34, 2.2, 2.2); return g;
     },
     bench() {
       const g = new THREE.Group();
       g.add(m(B(1.8, 0.1, 0.5), '#a0703c', 0, 0.5, 0), m(B(1.8, 0.5, 0.08), '#a0703c', 0, 0.85, -0.22),
         m(B(0.1, 0.5, 0.4), '#5c3a1e', -0.8, 0.25, 0), m(B(0.1, 0.5, 0.4), '#5c3a1e', 0.8, 0.25, 0));
-      g.position.set(-13, 0, 19); g.rotation.y = 0.3; blockRect(-13, 19, 2, 1); return g;
+      g.position.set(22, 0, 26.5); g.rotation.y = 0.3; blockRect(22, 26.5, 2, 1); return g;
     },
     flags() {
       const g = new THREE.Group();
@@ -374,7 +383,7 @@ function showDecor() {
         const tri = new THREE.ConeGeometry(0.18, 0.35, 3); tri.rotateX(Math.PI);
         g.add(m(tri, cs[i % 6], -1.6 + i * 0.4, 2.85 - Math.sin(i / 8 * Math.PI) * 0.3, 0));
       }
-      g.position.set(0, 0, 10); blockRect(-1.8, 10, 0.4, 0.4); blockRect(1.8, 10, 0.4, 0.4); return g;
+      g.position.set(28.5, 0, 26.5); blockRect(26.7, 26.5, 0.4, 0.4); blockRect(30.3, 26.5, 0.4, 0.4); return g;
     },
     rooster() { // флюгер-петушок на крыше дома (из сундука)
       const g = new THREE.Group();
@@ -393,7 +402,7 @@ function showDecor() {
       const roof = m(B(0.7, 0.08, 0.7), '#c0392b', 0, 2.82, 0); roof.rotation.z = 0.15;
       g.add(m(B(0.12, 2.4, 0.12), '#7a4b24', 0, 1.2, 0), m(B(0.5, 0.6, 0.5), '#e9c46a', 0, 2.5, 0), roof,
         m(new THREE.CircleGeometry(0.09, 12), '#2b2a1f', 0, 2.55, 0.26), ...birds);
-      g.position.set(-15, 0, 13); blockRect(-15, 13, 0.6, 0.6);
+      g.position.set(8, 0, 27); blockRect(8, 27, 0.6, 0.6);
       onFrame((dt, t) => birds.forEach((b, i) => { b.position.y = 2.95 + Math.max(0, Math.sin(t * 7 + i * 2)) * 0.12; }));
       return g;
     },
@@ -402,7 +411,7 @@ function showDecor() {
       const roof = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.55, 4), new THREE.MeshLambertMaterial({ color: '#e64980' }));
       roof.position.y = 1.1; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
       g.add(m(B(0.9, 0.8, 0.9), '#ffd8a8', 0, 0.4, 0), roof, m(new THREE.CircleGeometry(0.22, 14), '#2b2a1f', 0, 0.35, 0.46));
-      g.position.set(-12.6, 0, 12.6); blockRect(-12.6, 12.6, 1, 1); return g;
+      g.position.set(26, 0, 34); blockRect(26, 34, 1, 1); return g;
     },
     swing() { // качели: рама и сиденье на верёвках (крутится вокруг перекладины)
       const g = new THREE.Group(), seat = new THREE.Group();
@@ -410,16 +419,16 @@ function showDecor() {
       g.add(m(B(2.4, 0.12, 0.12), '#5c3a1e', 0, 2.45, 0));
       seat.add(m(B(0.03, 1.9, 0.03), '#e9c46a', -0.35, -0.95, 0), m(B(0.03, 1.9, 0.03), '#e9c46a', 0.35, -0.95, 0), m(B(0.8, 0.08, 0.35), '#e03131', 0, -1.9, 0));
       seat.position.y = 2.45; g.add(seat); g.userData.seat = seat;
-      g.position.set(-14, 0, 21.2); blockRect(-14, 21.2, 2.6, 1.4);
-      addPick(-14, 21.2, 1.4, 2.6, { type: 'object', id: 'fun:swing', name: 'Качели' });
+      g.position.set(16, 0, 31.5); blockRect(16, 31.5, 2.6, 1.4);
+      addPick(16, 31.5, 1.4, 2.6, { type: 'object', id: 'fun:swing', name: 'Качели' });
       return g;
     },
     trampoline() {
       const g = new THREE.Group();
       g.add(m(new THREE.CylinderGeometry(1.2, 1.2, 0.12, 24), '#1c7ed6', 0, 0.5, 0), m(new THREE.CylinderGeometry(1.05, 1.05, 0.14, 24), '#212529', 0, 0.51, 0));
       for (let a = 0; a < 6.28; a += 1.57) g.add(m(B(0.08, 0.5, 0.08), '#868e96', Math.cos(a) * 1.1, 0.25, Math.sin(a) * 1.1));
-      g.position.set(-21, 0, 20.3); blockRect(-21, 20.3, 2.4, 2.4);
-      addPick(-21, 20.3, 1.4, 1.5, { type: 'object', id: 'fun:trampoline', name: 'Батут' });
+      g.position.set(12, 0, 33.5); blockRect(12, 33.5, 2.4, 2.4);
+      addPick(12, 33.5, 1.4, 1.5, { type: 'object', id: 'fun:trampoline', name: 'Батут' });
       return g;
     },
     telescope() {
@@ -428,8 +437,8 @@ function showDecor() {
       const tube = m(new THREE.CylinderGeometry(0.1, 0.14, 1.2, 14), '#f1f3f5', 0, 1.35, 0); tube.rotation.x = -0.9;
       g.add(tube, m(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 14), '#1c7ed6', 0, 1.35 + Math.cos(0.9) * 0.6, -Math.sin(0.9) * 0.6));
       g.children.at(-1).rotation.x = -0.9;
-      g.position.set(-4.5, 0, 8); blockRect(-4.5, 8, 0.9, 0.9);
-      addPick(-4.5, 8, 0.9, 1.8, { type: 'object', id: 'fun:telescope', name: 'Телескоп' });
+      g.position.set(20, 0, 34); blockRect(20, 34, 0.9, 0.9);
+      addPick(20, 34, 0.9, 1.8, { type: 'object', id: 'fun:telescope', name: 'Телескоп' });
       return g;
     },
     fountain() { // фонтан с брызгами
@@ -442,7 +451,20 @@ function showDecor() {
         const k = (t * 0.8 + i / 10) % 1, a = i * 0.63;
         d.position.set(Math.cos(a) * k * 0.9, 1.6 + k * 1.2 - k * k * 2, Math.sin(a) * k * 0.9);
       }));
-      g.position.set(5, 0, 8.5); blockRect(5, 8.5, 2.8, 2.8); return g;
+      g.position.set(24, 0, 30); blockRect(24, 30, 2.8, 2.8); return g;
+    },
+    sz4() { // сеялка СЗ-4: рама, 4 бункера с сошниками, колёса, дышло вперёд (к трактору)
+      const g = new THREE.Group();
+      g.add(m(B(3.6, 0.15, 0.25), '#495057', 0, 0.75, 0), m(B(0.12, 0.12, 1.7), '#495057', 0, 0.6, 0.95));
+      for (let i = 0; i < 4; i++) {
+        const x = -1.35 + i * 0.9;
+        g.add(m(B(0.7, 0.6, 0.6), '#2f9e44', x, 1.15, -0.1), m(B(0.75, 0.06, 0.65), '#ffd43b', x, 1.47, -0.1), m(B(0.06, 0.6, 0.06), '#212529', x, 0.45, -0.3));
+      }
+      for (const x of [-1.95, 1.95]) { const w = m(new THREE.CylinderGeometry(0.4, 0.4, 0.2, 14), '#212529', x, 0.4, 0); w.rotation.z = Math.PI / 2; g.add(w); }
+      const at = S.sz4At || { x: 17, z: 27, rot: 0 };
+      g.position.set(at.x, 0, at.z); g.rotation.y = at.rot;
+      szPick = addPick(at.x, at.z, 1.8, 1.5, { type: 'object', id: 'sz4:info', name: 'Сеялка СЗ-4' });
+      return g;
     },
     balloon() { // воздушный шар кружит над фермой
       const g = new THREE.Group();
@@ -572,6 +594,65 @@ function updateBakery() {
   oven.sign.position.set(oven.x, 4.4 + Math.abs(Math.sin(performance.now() / 300)) * 0.2, oven.z - 2);
 }
 
+// ---------- Лев за рулём трактора, сеялка СЗ-4 ----------
+let szPick = null, noSeedT = 0;
+const behind = (o, d) => ({ x: o.position.x - Math.sin(o.rotation.y) * d, z: o.position.z - Math.cos(o.rotation.y) * d });
+
+export function setDriving(on) {
+  const L = hooks.lev, t = parked.tractor;
+  if (on === !!S.driving || !t) return;
+  if (on) {
+    if (!S.tractorAt) blockRect(MACHINES.tractor.x, MACHINES.tractor.z, 2.6, 2.6, 0); // уехал с места — там больше не препятствие
+    S.driving = true;
+    L.stop(); L.root.position.set(t.position.x, 0, t.position.z); L.root.rotation.y = L.targetRot = t.rotation.y;
+    toast('Рули джойстиком! Где проедешь — грядки вспашутся' + (S.decor.includes('sz4') ? '. Прицепи СЗ-4 — и сразу засеются.' : '.'), 4000);
+  } else {
+    S.driving = false;
+    S.tractorAt = { x: t.position.x, z: t.position.z, rot: t.rotation.y };
+    const r = t.rotation.y; // выйти слева от трактора
+    L.root.position.set(t.position.x + Math.cos(r) * 1.8, 0, t.position.z - Math.sin(r) * 1.8);
+    L.play('idle');
+  }
+  save(); barKey = '';
+}
+
+function driveActions() {
+  const acts = [{ id: 'exit', label: '🚜 Выйти из трактора' }], sz = decorObjs.sz4, t = parked.tractor;
+  if (sz && !S.hitched && Math.hypot(sz.position.x - t.position.x, sz.position.z - t.position.z) < 5) acts.push({ id: 'hitch', label: '🔗 Прицепить СЗ-4' });
+  if (S.hitched) acts.push({ id: 'unhitch', label: '⛓️ Отцепить СЗ-4' });
+  return acts;
+}
+function driveAct(id) {
+  if (id === 'exit') return setDriving(false);
+  S.hitched = id === 'hitch';
+  const sz = decorObjs.sz4;
+  if (!S.hitched) S.sz4At = { x: sz.position.x, z: sz.position.z, rot: sz.rotation.y };
+  save();
+  toast(S.hitched ? `СЗ-4 прицеплена! Едь по вспаханным грядкам — посеет: ${C.crops[S.seed].name}.` : 'СЗ-4 отцеплена.');
+}
+
+function updateDrive() {
+  const t = parked.tractor, sz = decorObjs.sz4;
+  if (S.hitched && sz && t) { // сеялка едет за трактором
+    const b = behind(t, 2.7);
+    sz.position.set(b.x, 0, b.z); sz.rotation.y = t.rotation.y;
+    szPick.position.set(b.x, 0.75, b.z);
+  }
+  if (!S.driving || !t) return;
+  const L = hooks.lev, p = L.root.position;
+  t.position.set(p.x, 0, p.z); t.rotation.y = L.root.rotation.y;
+  picks.tractor.position.set(p.x, 1.1, p.z);
+  p.y = 0.75; L.play('drive');
+  // работа в поле: трактор пашет, СЗ-4 сеет полосу шириной 2 грядки
+  const pl = plotAt(p.x, p.z);
+  if (pl && stage(pl) === 'wild') actPlot(pl, true);
+  if (!S.hitched) return;
+  for (const q of PLOTS) {
+    if (isLocked(q.zone) || q.green || Math.abs(q.x - sz.position.x) > 1.8 || Math.abs(q.z - sz.position.z) > 1.8 || stage(q) !== 'dug') continue;
+    if (!actPlot(q, true) && performance.now() > noSeedT) { noSeedT = performance.now() + 5000; toast(`Не хватает монет на семена (${C.crops[S.seed].seed}). Продай урожай тёте Вале!`); }
+  }
+}
+
 // ---------- качели, батут, телескоп ----------
 let fun = null; // { id, t } — Лев качается или прыгает
 export const levBusy = () => !!fun;
@@ -607,7 +688,7 @@ function updateBirds(dt) {
   if (!decorObjs.birdhouse || (chirpT -= dt) > 0) return;
   chirpT = 5 + Math.random() * 6;
   const p = hooks.lev.root.position;
-  if (Math.hypot(p.x + 15, p.z - 13) < 12) chirp();
+  if (Math.hypot(p.x - 8, p.z - 27) < 12) chirp();
 }
 
 // ---------- награды ----------
@@ -620,6 +701,7 @@ export function grantItem(item) {
 export function actMachine(id) {
   const m = MACHINES[id];
   if (id === 'tractor' && !S.items.tractor) return toast('Старый трактор не заводится. Может, кто-то поможет его получить?');
+  if (id === 'tractor') return setDriving(true);
   toast(`${m.name} готов к работе! Подойди к открытому полю — внизу появится кнопка.`);
 }
 
@@ -632,14 +714,15 @@ export function initFarm(sc, h) {
   $('seedBtn').onclick = nextSeed;
   applyAll();
   rebuild();
-  let acc = 0;
+  S.driving = false; // после перезапуска Лев не за рулём
+  let acc = 0, barAcc = 0;
   onFrame(dt => {
-    updateMachine(dt); updatePens(dt); updateYardPets(dt); updateBakery(); updateFun(dt); updateBirds(dt);
-    if ((acc += dt) > 1) { // раз в секунду: стадии роста и панель техники
+    updateMachine(dt); updatePens(dt); updateYardPets(dt); updateBakery(); updateFun(dt); updateBirds(dt); updateDrive();
+    if ((barAcc += dt) > 0.25) { barAcc = 0; updateBar(); }
+    if ((acc += dt) > 1) { // раз в секунду: стадии роста
       acc = 0;
       const sig = PLOTS.map(p => isLocked(p.zone) ? '' : stage(p)[0]).join('');
       if (sig !== signature) { signature = sig; rebuild(); }
-      updateBar();
     }
   });
 }
