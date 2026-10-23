@@ -1,7 +1,7 @@
 // Персонаж: модель со скелетом, анимации, ходьба по пути.
 import * as THREE from 'three';
 import { cloneModel, gltfOf, fitHeight } from './assets.js';
-import { applyLook } from './looks.js';
+import { applyLook, humanize } from './looks.js';
 
 export class Actor {
   // model — имя в assets/models/chars, height — рост в метрах, hat — шапка, look — внешность из looks.js
@@ -14,7 +14,7 @@ export class Actor {
     this.root.add(this.body);
     this.mixer = new THREE.AnimationMixer(this.body);
     this.actions = {};
-    for (const clip of gltfOf(key).animations) this.actions[clip.name] = this.mixer.clipAction(clip);
+    for (const clip of look ? humanize(key, gltfOf(key).animations) : gltfOf(key).animations) this.actions[clip.name] = this.mixer.clipAction(clip);
     this.current = null;
     this.path = null;
     this.speed = 4;

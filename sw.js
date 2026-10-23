@@ -1,6 +1,6 @@
 // Создано tools/build-sw.mjs — не править руками.
 // Офлайн-кэш: при новой версии игры кэш обновляется целиком.
-const VERSION = '693dbfa7d9';
+const VERSION = '1a925e711a';
 const FILES = [
   './',
   'assets/fonts/fredoka-latin-700-normal.woff2',

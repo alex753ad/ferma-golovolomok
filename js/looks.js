@@ -13,7 +13,7 @@ const BUILD = {
   kid:   { leg: 0.28, torso: 0.23, w: 0.26 },
 };
 
-// hair: [причёска, цвет]; sleeve: 'long' | 'mid' | 'short'; legs: 'shorts' | 'skirt' (иначе брюки до щиколотки);
+// hair: [причёска, цвет]; sleeve: 'long' | 'mid' | 'short'; legs: 'shorts' | 'dress' (иначе брюки до щиколотки), у платья pants — цвет юбки, tights — колготки;
 // shoes: [верх, подошва, высокие?]; collar — уголки воротника; vneck — вырез; buttons — пуговицы по центру;
 // pocket — нагрудный карман; cuffs — манжеты; hem — насколько кофта длиннее; earrings: [металл, камень?]; extra — особые детали
 export const LOOKS = {
@@ -22,12 +22,12 @@ export const LOOKS = {
   grandpa: { build: 'man', hair: ['bald', '#bdb6aa'], brows: '#8c8478', shirt: '@pinstripe', sleeve: 'long', collar: '@pinstripe', vneck: true,
     buttons: '#17213d', pocket: '@pinstripe', cuffs: '@pinstripe', belt: '#5c3a22', buckle: '#c9ccd1', pants: '#1c1e27', shoes: ['#1f1f1f', '#3a3a3a'] },
   mom: { build: 'woman', hair: ['straight', '#2a1a17'], brows: '#2a1a17', lips: '#d22f3c', shirt: '@leather', sleeve: 'long',
-    pants: '#2c3345', shoes: ['#1a1a1a', '#0b0b0b', true], earrings: ['#d4a72c', '#111111'], extra: jacket },
+    legs: 'dress', pants: '#141416', tights: '#2b2b31', shoes: ['#1a1a1a', '#0b0b0b', true], earrings: ['#d4a72c', '#111111'], extra: jacket },
   grandma: { build: 'woman', hair: ['bob', '#2b1f1c'], brows: '#2b1f1c', shirt: '@snake', sleeve: 'mid', vneck: true,
-    pants: '#6b4536', shoes: ['#3b2a22', '#1e1612'], earrings: ['#c9b48a'] },
+    legs: 'dress', pants: '@snake', shoes: ['#3b2a22', '#1e1612'], earrings: ['#c9b48a'] },
   petrovich: { build: 'man', hair: ['short', '#4a3b30'], mustache: '#4a3b30', shirt: '#e8590c', sleeve: 'short', collar: '#c94d0a',
     pants: '#3b5b8c', bib: true, shoes: ['#6b4a2b', '#2b1d12', true], extra: overalls },
-  valya: { build: 'woman', hair: ['bob', '#c0622c'], shirt: '#ae3ec9', sleeve: 'short', buttons: '#ffffff', pants: '#7b2f8f', legs: 'skirt',
+  valya: { build: 'woman', hair: ['bob', '#c0622c'], shirt: '#ae3ec9', sleeve: 'short', buttons: '#ffffff', pants: '#ae3ec9', legs: 'dress',
     shoes: ['#c2255c', '#5c1130'], extra: seller },
   miller: { build: 'man', hair: ['short', '#bdbdb5'], beard: '#bdbdb5', shirt: '#f1ede4', sleeve: 'mid', collar: '#e2dccf', cuffs: '#e2dccf',
     pants: '#8b7a62', apron: '#d9c9a3', shoes: ['#5a4030', '#2b1d12', true], extra: millerApron },
@@ -140,6 +140,82 @@ function decal(parent, key, [w, h], [x, y, z], draw) {
   parent.add(m);
 }
 
+// Конечность из двух частей (бедро и голень, плечо и предплечье). Нижняя часть — группа name в суставе jointY.
+// seg — деталь от y0 до y1 (y0 > y1), сама делится по суставу; put — одна деталь с центром на высоте y.
+function limb(parent, jointY, name) {
+  const low = new THREE.Group();
+  low.name = name; low.position.y = jointY;
+  parent.add(low);
+  const put = (color, size, y, z = 0, o) => y < jointY ? part(low, color, size, [0, y - jointY, z], o) : part(parent, color, size, [0, y, z], o);
+  const seg = (color, y0, y1, w, d) => {
+    const one = (a, b) => put(color, [w, a - b, d], (a + b) / 2);
+    if (y1 >= jointY || y0 <= jointY) one(y0, y1);
+    else { one(y0, jointY - 0.015); one(jointY + 0.015, y1); } // части заходят друг на друга, чтобы на сгибе не было щели
+  };
+  return { low, seg, put };
+}
+
+// Анимации Kenney для наших людей: ходьба и бег мягче (меньше размах ног, рук и поворота торса, плавные ключи),
+// колени сгибаются, когда нога идёт вперёд, локти — когда рука идёт вперёд. Клипы общие для модели — считаем один раз.
+const AMP = { walk: { leg: 0.6, arm: 0.55, torso: 0.4, head: 0.4, root: 0.6 }, sprint: { leg: 0.5, arm: 0.6, torso: 0.5, head: 0.5, root: 0.35 } };
+const tuned = {};
+export function humanize(key, clips) {
+  return tuned[key] || (tuned[key] = clips.map(c => AMP[c.name] ? tune(c, AMP[c.name]) : c));
+}
+function tune(clip, A) {
+  const tracks = [], legX = {};
+  for (const t of clip.tracks) {
+    const [node, prop] = t.name.split('.'), amp = A[node.split('-')[0]] ?? 1;
+    if (prop === 'quaternion') {
+      const r = smoothRot(t, amp);
+      tracks.push(r.track);
+      if (node.startsWith('leg')) legX[node.slice(4)] = r;
+    } else {
+      const v = t.clone(), y = [];
+      for (let i = 1; i < v.values.length; i += 3) y.push(v.values[i]);
+      const low = Math.min(...y); // подскок корпуса считаем от нижней точки, чтобы тело не зависало над землёй
+      for (let i = 1; i < v.values.length; i += 3) v.values[i] = low + (v.values[i] - low) * amp;
+      v.setInterpolation(THREE.InterpolateSmooth);
+      tracks.push(v);
+    }
+  }
+  const q = new THREE.Quaternion(), e = new THREE.Euler();
+  const rotTrack = (name, times, angles) => new THREE.QuaternionKeyframeTrack(name + '.quaternion', times,
+    angles.flatMap(a => q.setFromEuler(e.set(a, 0, 0)).toArray()));
+  for (const [side, other] of [['left', 'right'], ['right', 'left']]) {
+    const L = legX[side], O = legX[other];
+    if (!L || !O) continue;
+    const { times: t, x } = L, n = x.length, max = Math.max(...O.x.map(Math.abs)) || 1;
+    // нога идёт вперёд (угол уменьшается) — колено сгибается, чем быстрее, тем сильнее
+    const knee = x.map((_, i) => {
+      const a = (i + n - 2) % (n - 1), b = (i + 1) % (n - 1), dt = t[1] - t[0];
+      return 0.06 + Math.min(1.1, Math.max(0, -(x[b] - x[a]) / (2 * dt)) * 0.1);
+    });
+    tracks.push(rotTrack('knee-' + side, t, knee.map((k, i) => (k + knee[(i + 1) % n] + knee[(i + n - 1) % n]) / 3)));
+    // рука идёт вперёд вместе с противоположной ногой — локоть сгибается сильнее
+    tracks.push(rotTrack('elbow-' + side, O.times, O.x.map(v => -0.2 - 0.35 * Math.max(0, -v / max))));
+  }
+  return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+}
+// Кватернионы -> углы, размах amp вокруг среднего, сглаживание Катмулла-Рома (в 4 раза больше ключей)
+function smoothRot(track, amp) {
+  const q = new THREE.Quaternion(), e = new THREE.Euler(), n = track.times.length, E = [];
+  for (let i = 0; i < n; i++) { e.setFromQuaternion(q.fromArray(track.values, i * 4)); E.push([e.x, e.y, e.z]); }
+  const closed = n > 2 && E[0].every((v, j) => Math.abs(v - E[n - 1][j]) < 1e-3), m = closed ? n - 1 : n;
+  const mean = [0, 1, 2].map(j => E.slice(0, m).reduce((s, p) => s + p[j], 0) / m);
+  const P = E.map(p => p.map((v, j) => mean[j] + (v - mean[j]) * amp));
+  const at = i => P[closed ? (i + m) % m : Math.max(0, Math.min(n - 1, i))];
+  const times = [], rot = [];
+  for (let i = 0; i < n - 1; i++) for (let u = 0; u < 1; u += 0.25) {
+    const [p0, p1, p2, p3] = [at(i - 1), P[i], P[i + 1], at(i + 2)];
+    times.push(track.times[i] + (track.times[i + 1] - track.times[i]) * u);
+    rot.push(p1.map((v, j) => 0.5 * (2 * v + (-p0[j] + p2[j]) * u + (2 * p0[j] - 5 * v + 4 * p2[j] - p3[j]) * u * u + (-p0[j] + 3 * v - 3 * p2[j] + p3[j]) * u * u * u)));
+  }
+  times.push(track.times[n - 1]); rot.push(P[n - 1]);
+  const values = rot.flatMap(r => q.setFromEuler(e.set(r[0], r[1], r[2])).toArray());
+  return { track: new THREE.QuaternionKeyframeTrack(track.name, times, values), times, x: rot.map(r => r[0]) };
+}
+
 // Применить внешность к телу персонажа (после cloneModel, до fitHeight).
 export function applyLook(body, id) {
   const L = LOOKS[id], B = BUILD[L.build];
@@ -148,26 +224,29 @@ export function applyLook(body, id) {
   kenney.forEach(o => o.removeFromParent());
   const [legL, legR, torso, armL, armR, head] = ['leg-left', 'leg-right', 'torso', 'arm-left', 'arm-right', 'head'].map(n => body.getObjectByName(n));
 
-  // ноги: кость в тазу, нога свисает вниз; обувь — верх и подошва
+  // ноги: кость в тазу, нога свисает вниз и гнётся в колене (его качает анимация из humanize); обувь — верх и подошва
   for (const [bone, s] of [[legL, 1], [legR, -1]]) {
     bone.position.set(s * 0.068, B.leg, 0);
-    const n = B.leg - 0.04;
+    const n = B.leg - 0.04, { seg, put } = limb(bone, -B.leg * 0.5, s > 0 ? 'knee-left' : 'knee-right');
     if (L.legs === 'shorts') {
-      part(bone, L.pants, [0.13, n * 0.42, 0.13], [0, -n * 0.2, 0]);
-      part(bone, SKIN, [0.095, n * 0.62, 0.1], [0, -n * 0.68, 0]);
-    } else if (L.legs === 'skirt') part(bone, SKIN, [0.095, n, 0.1], [0, -n / 2, 0]);
-    else part(bone, L.pants, [0.12, n, 0.125], [0, -n / 2, 0]);
-    if (!L.shoes) { part(bone, SKIN, [0.085, 0.05, 0.11], [0, -B.leg + 0.025, 0.01]); continue; }
+      seg(L.pants, 0.01, -n * 0.41, 0.13, 0.13);
+      seg(SKIN, -n * 0.37, -n * 0.99, 0.095, 0.1);
+    } else if (L.legs === 'dress') seg(L.tights || SKIN, 0, -n, 0.095, 0.1);
+    else seg(L.pants, 0, -n, 0.12, 0.125);
+    if (!L.shoes) { put(SKIN, [0.085, 0.05, 0.11], -B.leg + 0.025, 0.01); continue; }
     const [up, sole, high] = L.shoes, sh = high ? 0.11 : 0.055;
-    part(bone, up, [0.11, sh, 0.14], [0, -B.leg + 0.012 + sh / 2, 0.015], { k: 0.5 });
-    part(bone, sole, [0.115, 0.024, 0.15], [0, -B.leg + 0.012, 0.017], { k: 0.25 });
+    put(up, [0.11, sh, 0.14], -B.leg + 0.012 + sh / 2, 0.015, { k: 0.5 });
+    put(sole, [0.115, 0.024, 0.15], -B.leg + 0.012, 0.017, { k: 0.25 });
   }
 
   // торс: рубашка, низ — брюки (или юбка), шея; воротник, пуговицы, карман, ремень и т.п.
   const T = B.torso, W = B.w, front = 0.082, hem = L.hem || 0;
   torso.position.set(0, B.leg, 0);
   part(torso, L.shirt, [W, T - 0.03 + hem, 0.16], [0, T / 2 + 0.02 - hem / 2, 0], { k: 0.35 });
-  if (L.legs === 'skirt') part(torso, L.pants, [W + 0.05, 0.2, 0.2], [0, -0.04, 0], { k: 0.35 });
+  if (L.legs === 'dress') { // юбка платья до колена, книзу шире
+    part(torso, L.pants, [W + 0.03, 0.16, 0.18], [0, -0.01, 0], { k: 0.35 });
+    part(torso, L.pants, [W + 0.1, 0.1, 0.23], [0, -0.12, 0], { k: 0.4 });
+  }
   else part(torso, L.pants, [W - 0.03, 0.1, 0.145], [0, 0.03, 0], { k: 0.35 });
   part(torso, SKIN, [0.09, 0.05, 0.09], [0, T, 0]);
   if (L.vneck) part(torso, SKIN, [0.075, 0.075, 0.01], [0, T - 0.012, front - 0.003], { k: 0.1, rz: Math.PI / 4 });
@@ -198,20 +277,30 @@ export function applyLook(body, id) {
     bone.add(g);
     arms.push(g);
     const a = T + 0.02, sl = L.sleeve === 'long' ? a - 0.04 : L.sleeve === 'mid' ? a * 0.62 : a * 0.4;
-    part(g, L.shirt, [0.095, sl, 0.1], [0, -sl / 2 + 0.03, 0]);
-    if (L.cuffs) part(g, L.cuffs, [0.104, 0.035, 0.109], [0, -sl + 0.045, 0], { k: 0.3 });
-    if (sl < a - 0.04) part(g, SKIN, [0.075, a - sl, 0.08], [0, -(sl + a) / 2 + 0.03, 0]);
-    part(g, L.gloves || SKIN, [0.1, 0.1, 0.095], [0, -a, 0], { k: 0.6 });
+    const { low, seg, put } = limb(g, 0.03 - a * 0.5, s > 0 ? 'elbow-left' : 'elbow-right');
+    low.rotation.x = -0.2; // локоть чуть согнут
+    seg(L.shirt, 0.03, 0.03 - sl, 0.095, 0.1);
+    if (L.cuffs) put(L.cuffs, [0.104, 0.035, 0.109], -sl + 0.045, 0, { k: 0.3 });
+    if (sl < a - 0.04) seg(SKIN, 0.03 - sl, 0.03 - a, 0.075, 0.08);
+    put(L.gloves || SKIN, [0.1, 0.1, 0.095], -a, 0, { k: 0.6 });
   }
 
-  // голова: лицо как на превью — вертикальные глаза-капли и брови.
+  // голова: глаза с белками, радужкой и бликом, брови, нос, улыбка, уши, румянец; у женщин — ресницы.
   // Кость головы увеличиваем целиком — шапки из actor.js растут вместе с ней.
   const hw = 0.36, hh = 0.32, hd = 0.31, fz = hd / 2;
   head.position.set(0, T - 0.01, 0);
   head.scale.setScalar(1.15);
   part(head, SKIN, [hw, hh, hd], [0, hh / 2 + 0.01, 0], { k: 0.75 });
   for (const s of [1, -1]) {
-    part(head, L.eyes || EYE, [0.03, 0.062, 0.02], [s * 0.072, hh * 0.5, fz - 0.007], { k: 1 });
+    part(head, '#ffffff', [0.052, 0.066, 0.016], [s * 0.072, hh * 0.5, fz - 0.006], { k: 1 });
+    part(head, L.eyes || EYE, [0.036, 0.052, 0.014], [s * 0.068, hh * 0.49, fz + 0.0], { k: 1 });
+    part(head, '#120d0b', [0.018, 0.028, 0.01], [s * 0.068, hh * 0.49, fz + 0.005], { k: 1 });
+    part(head, '#ffffff', [0.012, 0.012, 0.008], [s * 0.061, hh * 0.53, fz + 0.008], { k: 1 });
+    part(head, SKIN, [0.04, 0.075, 0.05], [s * (hw / 2 + 0.004), hh * 0.46, -0.01], { k: 0.8 });
+    if (L.build !== 'man') {
+      part(head, '#f2a7a0', [0.05, 0.028, 0.01], [s * 0.115, hh * 0.32, fz - 0.016], { k: 1 });
+      if (L.build === 'woman') part(head, '#1a1414', [0.032, 0.01, 0.01], [s * 0.1, hh * 0.6, fz - 0.006], { k: 0.6, rz: s * -0.5 });
+    }
     part(head, L.brows || EYE, [0.08, 0.02, 0.02], [s * 0.075, hh * 0.68, fz - 0.014], { k: 0.8, rz: s * 0.08 });
     if (L.mustache) { // усы-«руль» с подкрученными кончиками
       part(head, L.mustache, [0.1, 0.035, 0.035], [s * 0.048, hh * 0.3, fz - 0.005], { k: 1, rz: s * 0.35 });
@@ -224,7 +313,12 @@ export function applyLook(body, id) {
       part(head, m, [0.018, 0.04, 0.018], [s * 0.172, hh * 0.3 - 0.04, 0.035], { k: 1 });
     }
   }
+  part(head, '#e8b08c', [0.042, 0.05, 0.036], [0, hh * 0.38, fz + 0.002], { k: 0.8 });
   if (L.lips) part(head, L.lips, [0.065, 0.022, 0.02], [0, hh * 0.25, fz - 0.012], { k: 1 });
+  else { // улыбка: середина и приподнятые уголки
+    part(head, '#9c5446', [0.045, 0.012, 0.012], [0, hh * 0.24, fz - 0.01], { k: 1 });
+    for (const s of [1, -1]) part(head, '#9c5446', [0.022, 0.011, 0.012], [s * 0.029, hh * 0.255, fz - 0.012], { k: 1, rz: s * 0.6 });
+  }
   if (L.beard) part(head, L.beard, [hw * 0.85, 0.13, 0.08], [0, 0.07, fz - 0.03], { k: 0.6 });
   hair(head, ...L.hair, hw, hh, hd);
   L.extra?.({ torso, head, arms, legs: [legL, legR], T, W, front, hh, hd });
@@ -306,8 +400,8 @@ function overalls({ torso, legs, T, W, front }) {
 // Тётя Валя: белый круглый воротничок, фартук с карманом и завязками
 function seller({ torso, T, W, front }) {
   for (const s of [1, -1]) part(torso, '#ffffff', [0.065, 0.04, 0.012], [s * 0.034, T - 0.01, front + 0.004], { k: 0.9, rz: s * 0.3 });
-  part(torso, '#fff0f6', [W * 0.75, 0.22, 0.012], [0, -0.04, 0.107], { k: 0.2 });
-  part(torso, '#f783ac', [0.09, 0.06, 0.01], [0, -0.06, 0.114], { k: 0.2 });
+  part(torso, '#fff0f6', [W * 0.75, 0.22, 0.012], [0, -0.05, 0.118], { k: 0.2 });
+  part(torso, '#f783ac', [0.09, 0.06, 0.01], [0, -0.07, 0.125], { k: 0.2 });
   part(torso, '#f783ac', [W + 0.01, 0.025, 0.17], [0, 0.075, 0], { k: 0.2 });
 }
 
