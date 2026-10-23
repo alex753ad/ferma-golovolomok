@@ -117,7 +117,7 @@ export const CONFIG = {
   pieSpeed: 1.5,
 
   // Камера
-  camera: { minDist: 8, maxDist: 24, startDist: 13, pitch: 0.74, startYaw: 0 },
+  camera: { minDist: 3, maxDist: 24, startDist: 13, pitch: 0.74, closePitch: 0.3, startYaw: 0 },
 
   // Скорость ходьбы Льва, м/с
   walkSpeed: 4.2,

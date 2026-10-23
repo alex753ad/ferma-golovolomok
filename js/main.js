@@ -25,6 +25,7 @@ import { initBonus, updateBonus, dailyNpc, dailyScreen, letterScreen, chestScree
 import { initPets, updatePets, refreshPets, hasHorse, setRiding } from './pets.js';
 import { initCollection, collectionScreen, flushPrizes, checkBadges } from './collection.js';
 import { settingsScreen } from './settings.js';
+import { initInspect, updateInspect } from './inspect.js';
 import { initAudio, settings, step, sfx, moo, cluck, buzz, setTheme, musicQuiet } from './audio.js';
 import { startTutorial, tutorialTick } from './tutorial.js';
 
@@ -195,6 +196,7 @@ async function npcTalk(id) {
 
 const rig = new CameraRig(camera, renderer.domElement, onTap);
 rig.snap(lev.root.position);
+initInspect({ camera, dom: renderer.domElement, rig, actors: () => [lev, ...npcs], actorOf: id => id === 'lev' ? lev : npcById(id) });
 
 // ---------- джойстик ----------
 const joy = new Joystick($('joy'), $('joyKnob'));
@@ -377,6 +379,7 @@ renderer.setAnimationLoop(() => {
     a.bang.position.y = a.star.position.y = a.news.position.y = y;
   }
   rig.update(dt, lev.root.position);
+  updateInspect(dt);
   followSun(lev.root.position.x, lev.root.position.z);
   setDayPhase(dayOverride ?? dayPhase());
   updateWorld(dt, t);

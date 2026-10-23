@@ -46,7 +46,7 @@ export class CameraRig {
     };
     dom.addEventListener('pointerup', up);
     dom.addEventListener('pointercancel', e => { ptrs.delete(e.pointerId); start = null; });
-    dom.addEventListener('wheel', e => { e.preventDefault(); this.setDist(this.dist * (1 + Math.sign(e.deltaY) * 0.1)); }, { passive: false });
+    dom.addEventListener('wheel', e => { e.preventDefault(); if (this.enabled) this.setDist(this.dist * (1 + Math.sign(e.deltaY) * 0.1)); }, { passive: false });
   }
 
   setDist(d) { this.dist = Math.max(C.minDist, Math.min(this.maxDist, d)); }
@@ -56,7 +56,9 @@ export class CameraRig {
 
   update(dt, p) {
     if (p) this.target.lerp(p, Math.min(1, dt * 4));
-    const h = Math.sin(C.pitch) * this.dist, r = Math.cos(C.pitch) * this.dist;
+    // вблизи камера опускается: от C.pitch на обычном расстоянии до C.closePitch на самом близком
+    const f = Math.max(0, Math.min(1, (this.dist - C.minDist) / (C.startDist - C.minDist))), pitch = C.closePitch + (C.pitch - C.closePitch) * f;
+    const h = Math.sin(pitch) * this.dist, r = Math.cos(pitch) * this.dist;
     this.camera.position.set(this.target.x + Math.sin(this.yaw) * r, this.target.y + h, this.target.z + Math.cos(this.yaw) * r);
     this.look.lerp(this.target, Math.min(1, dt * 6));
     this.camera.lookAt(this.look.x, this.look.y + 1, this.look.z);

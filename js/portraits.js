@@ -36,5 +36,5 @@ export function makePortraits(defs) {
 
 // HTML-картинка портрета в цветном круге
 export function face(id, bg = '#ffe8a3') {
-  return `<div class="face" style="background:${bg}"><img src="${DRAWN.includes(id) ? `assets/portraits/${id}.svg` : cache[id] || ''}" alt=""></div>`;
+  return `<div class="face" data-id="${id}" style="background:${bg}"><img src="${DRAWN.includes(id) ? `assets/portraits/${id}.svg` : cache[id] || ''}" alt=""></div>`;
 }

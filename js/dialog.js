@@ -3,6 +3,7 @@ import { CONFIG } from './config.js';
 import { face } from './portraits.js';
 import { $ } from './ui.js';
 import { sfx } from './audio.js';
+import { canInspect, inspect } from './inspect.js';
 
 const N = CONFIG.names;
 const veil = $('veil'), dlg = $('dlg');
@@ -20,6 +21,13 @@ export function open(html, cls = '') {
   dlg.onclick = null;
   dlg.innerHTML = html;
   veil.hidden = false;
+  // кнопка «Разглядеть» под портретом персонажа, который есть на ферме
+  const f = dlg.querySelector('.face[data-id]'), id = f?.dataset.id;
+  if (!canInspect(id)) return;
+  const box = document.createElement('div'), b = document.createElement('button');
+  box.className = 'facebox'; b.className = 'peek'; b.textContent = '🔍 Разглядеть';
+  b.onclick = e => { e.stopPropagation(); document.body.classList.add('peeking'); inspect(id, () => document.body.classList.remove('peeking')); };
+  f.replaceWith(box); box.append(f, b);
 }
 export function close() { veil.hidden = true; dlg.innerHTML = ''; }
 export const isOpen = () => !veil.hidden;
@@ -44,7 +52,7 @@ export function bindKeys(maxLen, onEnter, mask = false) {
   dlg.querySelectorAll('[data-k]').forEach(b => (b.onclick = () => press(b.dataset.k)));
   removeEventListener('keydown', keyHandler);
   keyHandler = e => {
-    if (veil.hidden || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    if (veil.hidden || document.body.classList.contains('peeking') || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     if (/^\d$/.test(e.key)) press(e.key);
     else if (e.key === 'Backspace') press('del');
     else if (e.key === 'Enter') press('ok');
