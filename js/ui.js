@@ -9,10 +9,13 @@ export function makeLabel(lines, w, h, bg, fg, scale) {
   c.width = w * 2; c.height = h * 2;
   const x = c.getContext('2d');
   x.scale(2, 2);
-  x.fillStyle = bg;
-  x.beginPath(); x.roundRect(2, 2, w - 4, h - 4, Math.min(24, h / 3)); x.fill();
+  // блок, как кнопки интерфейса: подставка темнее, верх, блик
+  const e = 5, r = Math.min(16, h / 4), top = h - 4 - e, box = (y, hh, c) => { x.fillStyle = c; x.beginPath(); x.roundRect(2, y, w - 4, hh, r); x.fill(); };
+  box(2 + e, top, new THREE.Color(bg).multiplyScalar(0.72).getStyle());
+  box(2, top, bg);
+  x.fillStyle = 'rgba(255,255,255,.55)'; x.beginPath(); x.roundRect(2 + r, 4, w - 4 - 2 * r, 3, 1.5); x.fill();
   x.fillStyle = fg; x.textAlign = 'center'; x.textBaseline = 'middle';
-  lines.forEach((l, i) => { x.font = l[1]; x.fillText(l[0], w / 2, h / (lines.length + 1) * (i + 1) + (lines.length > 1 ? (i ? -4 : 4) : 0)); });
+  lines.forEach((l, i) => { x.font = l[1]; x.fillText(l[0], w / 2, 2 + top / (lines.length + 1) * (i + 1) + (lines.length > 1 ? (i ? -4 : 4) : 0)); });
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
