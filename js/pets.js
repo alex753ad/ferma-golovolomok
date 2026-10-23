@@ -7,6 +7,7 @@ import { chestClosed } from './bonus.js';
 import { ZONES } from '../data/map.js';
 import { S, save } from './save.js';
 import { Actor } from './actor.js';
+import { part, bake } from './soft.js';
 import { isLocked } from './world.js';
 import { isOpen } from './dialog.js';
 import { toast, makeLabel, on, floatAt } from './ui.js';
@@ -14,31 +15,46 @@ import { toast, makeLabel, on, floatAt } from './ui.js';
 let scene, hooks, lev;
 const followers = []; // { obj, slot, update(dt, moving) }
 
-// ---------- козлёнок и конь из кубиков (в стиле Kenney Cube Pets) ----------
+// ---------- козлёнок и конь из мягких кубиков ----------
 function voxel(kind) {
   const horse = kind === 'horse';
-  const col = horse ? { body: '#8d5524', dark: '#3b2412', nose: '#5c3a1e' } : { body: '#f1f3f5', dark: '#868e96', nose: '#ffc9c9' };
+  const col = horse ? { body: '#8d5524', dark: '#3b2412', nose: '#5c3a1e', mane: '#2b1a0e' } : { body: '#f1f3f5', dark: '#868e96', nose: '#ffc9c9', mane: '#dee2e6' };
   const s = horse ? 1.35 : 0.8;
-  const mat = c => new THREE.MeshLambertMaterial({ color: c });
-  const box = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w * s, h * s, d * s), mat(c)); m.position.set(x * s, y * s, z * s); m.castShadow = true; return m; };
   const root = new THREE.Group(), legs = [];
-  root.add(box(0.6, 0.45, 1.0, col.body, 0, 0.72, 0));
+  const P = (p, c, [w, h, d], [x, y, z], o) => part(p, c, [w * s, h * s, d * s], [x * s, y * s, z * s], o);
+  const eye = (x, y, z) => { for (const t of [1, -1]) { P(root, '#ffffff', [0.03, 0.09, 0.08], [t * x, y, z], { k: 1 }); P(root, '#212529', [0.03, 0.065, 0.055], [t * (x + 0.008), y - 0.005, z + 0.01], { k: 1 }); } };
+  P(root, col.body, [0.6, 0.45, 1.0], [0, 0.72, 0], { k: 0.45 });
   if (horse) {
-    root.add(box(0.28, 0.6, 0.32, col.body, 0, 1.08, 0.45), box(0.3, 0.3, 0.6, col.body, 0, 1.38, 0.7),
-      box(0.31, 0.12, 0.2, col.nose, 0, 1.3, 0.95), box(0.1, 0.62, 0.36, col.dark, 0, 1.15, 0.35),
-      box(0.12, 0.5, 0.12, col.dark, 0, 0.7, -0.55));
-    root.children.at(-1).rotation.x = 0.4;
+    P(root, col.body, [0.3, 0.6, 0.34], [0, 1.08, 0.45], { k: 0.4, rx: 0.35 });          // шея
+    P(root, col.body, [0.3, 0.3, 0.6], [0, 1.38, 0.7], { k: 0.45 });                      // голова
+    P(root, col.nose, [0.31, 0.16, 0.2], [0, 1.3, 0.95], { k: 0.5 });
+    P(root, '#ffffff', [0.08, 0.16, 0.03], [0, 1.37, 0.995], { k: 0.2 });                   // проточина
+    for (const t of [1, -1]) { P(root, col.body, [0.07, 0.14, 0.06], [t * 0.1, 1.58, 0.55], { k: 0.4, rz: t * -0.2 }); P(root, '#212529', [0.03, 0.03, 0.02], [t * 0.08, 1.31, 1.05], { k: 1 }); }
+    eye(0.15, 1.45, 0.78);
+    for (let i = 0; i < 5; i++) P(root, col.mane, [0.12, 0.22, 0.16], [0, 1.52 - i * 0.12, 0.52 - i * 0.07], { k: 0.6, rx: 0.4 }); // грива
+    P(root, col.mane, [0.12, 0.55, 0.12], [0, 0.7, -0.6], { k: 0.5, rx: 0.4 });                // хвост
+    P(root, '#c92a2a', [0.62, 0.08, 0.42], [0, 0.97, -0.05], { k: 0.4 });                      // седло
+    P(root, '#7a1f1f', [0.5, 0.1, 0.12], [0, 1.02, -0.22], { k: 0.4 });
+    for (const t of [1, -1]) P(root, '#adb5bd', [0.04, 0.2, 0.08], [t * 0.33, 0.78, 0], { k: 0.3 }); // стремена
   } else {
-    root.add(box(0.36, 0.36, 0.42, col.body, 0, 1.05, 0.6), box(0.2, 0.14, 0.12, col.nose, 0, 0.98, 0.84),
-      box(0.06, 0.22, 0.06, col.dark, -0.1, 1.3, 0.55), box(0.06, 0.22, 0.06, col.dark, 0.1, 1.3, 0.55),
-      box(0.08, 0.16, 0.06, col.body, 0, 0.82, 0.78), box(0.12, 0.08, 0.2, col.body, -0.24, 1.12, 0.55), box(0.12, 0.08, 0.2, col.body, 0.24, 1.12, 0.55));
+    P(root, col.body, [0.36, 0.36, 0.42], [0, 1.05, 0.6], { k: 0.5 });
+    P(root, col.nose, [0.2, 0.14, 0.12], [0, 0.98, 0.84], { k: 0.6 });
+    P(root, '#212529', [0.06, 0.03, 0.02], [0, 1.0, 0.905], { k: 1 });
+    for (const t of [1, -1]) {
+      P(root, col.dark, [0.06, 0.22, 0.06], [t * 0.1, 1.3, 0.52], { k: 0.4, rx: -0.5, rz: t * -0.25 }); // рожки
+      P(root, col.body, [0.18, 0.07, 0.1], [t * 0.24, 1.12, 0.55], { k: 0.5, rz: t * -0.3 });             // уши
+    }
+    P(root, col.mane, [0.08, 0.16, 0.06], [0, 0.85, 0.78], { k: 0.5 });                                    // бородка
+    P(root, col.body, [0.08, 0.14, 0.06], [0, 0.98, -0.52], { k: 0.5, rx: -0.6 });                         // хвостик
+    eye(0.17, 1.1, 0.72);
   }
   for (const [x, z] of [[-0.2, 0.35], [0.2, 0.35], [-0.2, -0.35], [0.2, -0.35]]) {
     const pivot = new THREE.Group(); pivot.position.set(x * s, 0.55 * s, z * s);
-    const leg = box(0.15, 0.55, 0.15, col.body, 0, -0.27, 0);
-    const hoof = box(0.16, 0.1, 0.16, col.dark, 0, -0.52, 0);
-    pivot.add(leg, hoof); root.add(pivot); legs.push(pivot);
+    P(pivot, col.body, [0.15, 0.5, 0.15], [0, -0.25, 0], { k: 0.4 });
+    P(pivot, col.dark, [0.16, 0.1, 0.18], [0, -0.52, 0.01], { k: 0.4 });
+    root.add(pivot); legs.push(pivot);
   }
+  bake(root);
   let ph = 0;
   return {
     root,
@@ -107,7 +123,7 @@ function setCollar() {
   sima.collar?.removeFromParent();
   const c = S.collar || (S.chests.c4 ? '#e03131' : null);
   if (!c) return;
-  const m = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.3), new THREE.MeshLambertMaterial({ color: c, emissive: c === '#ffd43b' ? '#5a4500' : '#000' }));
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.3), new THREE.MeshLambertMaterial({ color: c, flatShading: true, emissive: c === '#ffd43b' ? '#5a4500' : '#000' }));
   m.position.set(0, 0.3, 0.12);
   sima.obj.root.add(m);
   sima.collar = m;
@@ -149,8 +165,12 @@ function updateMouse(dt) {
   const L = lev.root.position;
   const near = Math.hypot(L.x - mill.x, L.z - mill.z) < 14;
   if (!mouse && near && (mouseT -= dt) < 0) {
-    mouse = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.18, 0.4), new THREE.MeshLambertMaterial({ color: '#868e96' }));
-    mouse.position.set(mill.x + 2.5, 0.1, mill.z + 2.5);
+    mouse = new THREE.Group(); // серая мышка: тело, ушки, нос, хвостик (бежит по +z)
+    part(mouse, '#868e96', [0.22, 0.16, 0.34], [0, 0.08, 0], { k: 0.7 });
+    for (const t of [1, -1]) part(mouse, '#ffc9c9', [0.08, 0.08, 0.03], [t * 0.07, 0.18, 0.1], { k: 0.8 });
+    part(mouse, '#f783ac', [0.04, 0.04, 0.04], [0, 0.08, 0.18], { k: 1 });
+    part(mouse, '#ffc9c9', [0.02, 0.02, 0.28], [0, 0.06, -0.3], { k: 0.3, rx: -0.2 });
+    mouse.position.set(mill.x + 2.5, 0, mill.z + 2.5);
     scene.add(mouse);
     say('Мышь! 🐭');
     mouseT = 60;

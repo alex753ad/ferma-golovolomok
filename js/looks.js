@@ -1,8 +1,9 @@
 // Внешность людей в стиле «превью семьи»: своё низкополигональное тело поверх скелета Kenney.
 // Меши Kenney убираем, кости раздвигаем под новые пропорции — анимации (ходьба, кивок, трактор) остаются.
 // Размеры — в единицах кости Kenney (голова ≈ 0.32), рост потом приводит fitHeight.
-// Цвет детали — '#rrggbb' или '@узор' (узоры рисуются на canvas, см. PATTERNS).
+// Детали — мягкие кубики из soft.js; узоры одежды — ниже в PATTERNS.
 import * as THREE from 'three';
+import { PATTERNS, wrap, part, decal, mat, bake } from './soft.js';
 
 const SKIN = '#f1c7a5', EYE = '#2b2420';
 
@@ -39,7 +40,7 @@ export const LOOKS = {
 
 // ---------- узоры ----------
 // [размер плитки в единицах модели, рисование на квадратном canvas]; функция — готовый материал
-const PATTERNS = {
+Object.assign(PATTERNS, {
   stars: [0.3, (x, n) => { // серое худи Льва в белых контурах звёзд
     x.fillStyle = '#5b5e66'; x.fillRect(0, 0, n, n);
     x.strokeStyle = '#e9ecef'; x.lineWidth = n / 50; x.lineJoin = 'round';
@@ -77,69 +78,7 @@ const PATTERNS = {
     x.fillStyle = '#f3e3c3'; x.fillRect(0, n * 0.82, n, n * 0.04);
   }],
   leather: () => new THREE.MeshPhongMaterial({ color: '#202024', specular: '#6c6c74', shininess: 45, flatShading: true }),
-};
-// Нарисовать фигуру и её копии по краям плитки, чтобы узор повторялся без швов
-function wrap(n, x, y, r, draw) {
-  for (const dx of [-n, 0, n]) for (const dy of [-n, 0, n]) if (x + dx > -r && x + dx < n + r && y + dy > -r && y + dy < n + r) draw(x + dx, y + dy);
-}
-function canvasTex(w, h, draw) {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  draw(c.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
-}
-
-// Мягкий куб: вершины куба подтянуты к шару (k=0 — куб, 1 — шар). Грани остаются видны, как на превью.
-const geos = {}, mats = {};
-function soft(k) {
-  if (geos[k]) return geos[k];
-  const g = new THREE.BoxGeometry(1, 1, 1, 3, 3, 3), p = g.attributes.position, v = new THREE.Vector3(), s = new THREE.Vector3();
-  for (let i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i);
-    v.lerp(s.copy(v).setLength(0.5), k);
-    p.setXYZ(i, v.x, v.y, v.z);
-  }
-  return (geos[k] = g);
-}
-// Для узоров: развёртка в размер детали, чтобы плитка узора была одинаковой на рубашке, рукаве и кармане
-function softUV(k, w, h, d, tile) {
-  const key = [k, w, h, d, tile].join();
-  if (geos[key]) return geos[key];
-  const g = soft(k).clone(), uv = g.attributes.uv, dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
-  for (let i = 0; i < uv.count; i++) { const [a, b] = dims[i / 16 | 0]; uv.setXY(i, uv.getX(i) * a / tile, uv.getY(i) * b / tile); }
-  return (geos[key] = g);
-}
-function mat(c) {
-  if (mats[c]) return mats[c];
-  if (c[0] !== '@') return (mats[c] = new THREE.MeshLambertMaterial({ color: c, flatShading: true }));
-  const P = PATTERNS[c.slice(1)];
-  if (typeof P === 'function') return (mats[c] = P());
-  const t = canvasTex(256, 256, P[1]);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  const m = new THREE.MeshLambertMaterial({ map: t, flatShading: true });
-  m.userData.tile = P[0];
-  return (mats[c] = m);
-}
-function part(parent, color, [w, h, d], [x, y, z], { k = 0.45, rx = 0, ry = 0, rz = 0 } = {}) {
-  const M = mat(color), tile = M.userData.tile;
-  const m = new THREE.Mesh(tile ? softUV(k, w, h, d, tile) : soft(k), M);
-  m.scale.set(w, h, d); m.position.set(x, y, z); m.rotation.set(rx, ry, rz);
-  m.castShadow = true;
-  parent.add(m);
-  return m;
-}
-// Плоская картинка поверх одежды (надпись на худи)
-const decals = {};
-function decal(parent, key, [w, h], [x, y, z], draw) {
-  const map = decals[key] || (decals[key] = canvasTex(256, Math.round(256 * h / w), draw));
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map, transparent: true }));
-  m.position.set(x, y, z);
-  parent.add(m);
-}
-
+});
 // Конечность из двух частей (бедро и голень, плечо и предплечье). Нижняя часть — группа name в суставе jointY.
 // seg — деталь от y0 до y1 (y0 > y1), сама делится по суставу; put — одна деталь с центром на высоте y.
 function limb(parent, jointY, name) {
@@ -322,6 +261,7 @@ export function applyLook(body, id) {
   if (L.beard) part(head, L.beard, [hw * 0.85, 0.13, 0.08], [0, 0.07, fz - 0.03], { k: 0.6 });
   hair(head, ...L.hair, hw, hh, hd);
   L.extra?.({ torso, head, arms, legs: [legL, legR], T, W, front, hh, hd });
+  bake(body);
 }
 
 function hair(head, style, c, hw, hh, hd) {

@@ -1,5 +1,6 @@
 // Дополнительные задачи: задача дня, письма от папы, сундуки с кодовыми замками.
 import * as THREE from 'three';
+import { part } from './soft.js';
 import { DAILY, HARD, CHESTS } from '../data/tasks.js';
 import { genTask, genId, genHardId } from '../data/gen.js';
 import { NPCS } from '../data/map.js';
@@ -276,8 +277,12 @@ export function initBonus(sc, h) {
   placeChests();
   // почтовый ящик у дома
   const box = new THREE.Group();
-  const m = (g, c, y) => { const x = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: c })); x.position.y = y; x.castShadow = true; return x; };
-  box.add(m(new THREE.BoxGeometry(0.1, 1.1, 0.1), '#7a4b24', 0.55), m(new THREE.BoxGeometry(0.5, 0.35, 0.7), '#1c7ed6', 1.25));
+  part(box, '#7a4b24', [0.1, 1.1, 0.1], [0, 0.55, 0], { k: 0.2 });
+  part(box, '#1c7ed6', [0.5, 0.3, 0.7], [0, 1.22, 0], { k: 0.2 });
+  part(box, '#1c7ed6', [0.5, 0.2, 0.7], [0, 1.37, 0], { k: 0.8 });       // скруглённая крышка
+  part(box, '#212529', [0.3, 0.04, 0.02], [0, 1.28, 0.355], { k: 0.3 }); // щель для писем
+  part(box, '#868e96', [0.03, 0.3, 0.03], [0.27, 1.35, -0.1], { k: 0.2 });
+  part(box, '#e03131', [0.03, 0.12, 0.16], [0.27, 1.45, -0.02], { k: 0.2 }); // флажок
   box.position.set(-2.6, 0, 18); scene.add(box);
   blockRect(-2.6, 18, 0.6, 0.8);
   addPick(-2.6, 18, 0.9, 1.6, { type: 'object', id: 'mail:dad', name: 'Почтовый ящик' });

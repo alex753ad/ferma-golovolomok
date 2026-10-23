@@ -4,6 +4,7 @@ import { BOUNDS, ZONES, ROADS, BUILDINGS } from '../data/map.js';
 import { instances, cloneModel, fitHeight } from './assets.js';
 import { blockRect, blockCircle, isFree } from './nav.js';
 import { makeLabel } from './ui.js';
+import { softBox } from './soft.js';
 
 export const wind = { value: 0 };      // общее время для шейдеров ветра
 const animated = [];                    // функции (dt, t) для «живых» объектов
@@ -17,7 +18,7 @@ const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647
 const rr = (a, b) => a + rnd() * (b - a);
 
 const mats = {};
-const mat = (c, o = {}) => mats[c + JSON.stringify(o)] ||= new THREE.MeshLambertMaterial({ color: c, ...o });
+const mat = (c, o = {}) => mats[c + JSON.stringify(o)] ||= new THREE.MeshLambertMaterial({ color: c, flatShading: true, ...o });
 
 function mesh(geo, color, x = 0, y = 0, z = 0, o) {
   const m = new THREE.Mesh(geo, mat(color, o));
@@ -25,7 +26,7 @@ function mesh(geo, color, x = 0, y = 0, z = 0, o) {
   m.castShadow = m.receiveShadow = true;
   return m;
 }
-const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+const box = (w, h, d) => softBox(w, h, d, 0.15); // мягкие кубики, как у людей
 function flat(scene, w, d, color, x, z, y = 0.02) {
   const m = mesh(new THREE.PlaneGeometry(w, d), color, x, y, z);
   m.rotation.x = -Math.PI / 2;
@@ -100,20 +101,44 @@ function gableRoof(w, d, h, color) {
   return mesh(g, color);
 }
 
+// Цоколь, угловые доски и конёк крыши — у всех домиков
+function houseBase(g, w, d, h, roof, roofH) {
+  g.add(mesh(box(w + 0.2, 0.35, d + 0.2), '#a5a9ad', 0, 0.17, 0));
+  for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) g.add(mesh(box(0.2, h, 0.2), '#fff8e8', x * w / 2, h / 2, z * d / 2));
+  g.add(mesh(box(0.22, 0.22, d + 0.75), roof, 0, h + roofH, 0));
+}
+// Окно: рама, стекло с перекрестием, подоконник, ставни цвета крыши
+function windowAt(g, x, y, z, shutter) {
+  g.add(mesh(box(1.05, 0.95, 0.08), '#fff8e8', x, y, z), mesh(box(0.88, 0.78, 0.1), '#9fd8ff', x, y, z + 0.01),
+    mesh(box(0.06, 0.78, 0.13), '#fff8e8', x, y, z + 0.01), mesh(box(0.88, 0.06, 0.13), '#fff8e8', x, y, z + 0.01),
+    mesh(box(1.15, 0.08, 0.22), '#fff8e8', x, y - 0.5, z + 0.05));
+  if (shutter) for (const s of [1, -1]) g.add(mesh(box(0.3, 0.9, 0.06), shutter, x + s * 0.7, y, z));
+}
+// Дверь с наличником, ручкой и ступенькой; cross — дощатая дверь сарая с белым крестом
+function doorAt(g, w, h, z, color, cross) {
+  g.add(mesh(box(w + 0.2, h + 0.15, 0.08), '#fff8e8', 0, h / 2 + 0.07, z), mesh(box(w, h, 0.1), color, 0, h / 2, z + 0.02));
+  if (cross) for (const s of [1, -1]) { const c = mesh(box(0.1, Math.hypot(w, h) - 0.1, 0.12), '#fff8e8', 0, h / 2, z + 0.03); c.rotation.z = s * Math.atan2(w, h); g.add(c); }
+  else g.add(mesh(new THREE.IcosahedronGeometry(0.06, 0), '#fcc419', w * 0.32, h * 0.5, z + 0.1));
+  g.add(mesh(box(w + 0.4, 0.12, 0.5), '#adb5bd', 0, 0.06, z + 0.3));
+}
+
 function building(b) {
   const g = new THREE.Group();
-  const h = b.type === 'hut' ? 1.8 : b.type === 'manor' ? 4.2 : 2.8;
+  const h = b.type === 'hut' ? 1.8 : b.type === 'manor' ? 4.2 : 2.8, roofH = b.type === 'hut' ? 1.6 : 2;
   g.add(mesh(box(b.w, h, b.d), b.color, 0, h / 2, 0));
-  const roof = gableRoof(b.w + 0.6, b.d + 0.6, b.type === 'hut' ? 1.6 : 2, b.roof);
+  const roof = gableRoof(b.w + 0.6, b.d + 0.6, roofH, b.roof);
   roof.position.y = h;
   g.add(roof);
+  houseBase(g, b.w, b.d, h, b.roof, roofH);
   // дверь и окна на южной стороне (+z)
   const front = b.d / 2 + 0.03;
-  if (b.type === 'garage') g.add(mesh(box(2.6, 2.2, 0.1), '#6c7a89', 0, 1.1, front));
-  else g.add(mesh(box(0.9, 1.6, 0.1), '#8d5524', 0, 0.8, front));
-  if (b.type !== 'hut') for (const x of [-b.w / 3, b.w / 3]) g.add(mesh(box(0.9, 0.8, 0.1), '#9fd8ff', x, h * 0.6, front));
+  if (b.type === 'garage') {
+    g.add(mesh(box(2.6, 2.2, 0.1), '#6c7a89', 0, 1.1, front));
+    for (let i = 0; i < 5; i++) g.add(mesh(box(2.5, 0.05, 0.06), '#5a6775', 0, 0.3 + i * 0.42, front + 0.05));
+  } else doorAt(g, 0.9, 1.6, front, '#8d5524');
+  if (b.type !== 'hut') for (const x of [-b.w / 3, b.w / 3]) windowAt(g, x, h * 0.6, front, b.type === 'garage' ? null : b.roof);
   if (b.type === 'manor') {
-    for (const x of [-b.w / 3, b.w / 3]) g.add(mesh(box(0.9, 0.8, 0.1), '#9fd8ff', x, h * 0.6 + 1.6, front)); // второй этаж
+    for (const x of [-b.w / 3, b.w / 3]) windowAt(g, x, h * 0.6 + 1.6, front, b.roof); // второй этаж
     g.add(mesh(box(0.25, 2.2, 0.25), '#868e96', b.w / 2 - 1, h + 1.6, 0));
   }
   if (b.chimney) {
@@ -175,6 +200,7 @@ function zoneContent(zn, inner) {
     sails.scale.setScalar(7 / 3.11);
     sails.position.set(x + 1.7, 5.4, z);
     g.add(tower, cap, door, sails);
+    for (const [y, r] of [[2.4, 1.6], [4.1, 1.42]]) g.add(mesh(box(0.12, 0.6, 0.45), '#9fd8ff', x + r, y, z), mesh(box(0.1, 0.72, 0.57), '#8d5524', x + r - 0.02, y, z));
     animated.push(dt => { if (!zoneState[zn.id].locked) sails.rotation.x += dt * 0.7; });
     inner.push([x, z, 4, 4]);
   }
@@ -186,6 +212,10 @@ function zoneContent(zn, inner) {
     g.add(shore, water);
     g.add(instances('nature/lily_large', [{ x: x - 2, z: z + 1 }, { x: x + 1.5, z: z - 1.2 }, { x: x + 2.5, z: z + 1.5 }], { scale: 1.2, y: 0.06, shadow: false }));
     animated.push((dt, t) => water.material.color.setHSL(0.57, 0.72, 0.56 + Math.sin(t * 1.2) * 0.03));
+    for (const a of [0.4, 0.55, 2.2, 2.35, 3.9, 5.3, 5.45]) { // камыши у берега
+      const rx = (w / 2 - 1.1) * Math.cos(a), rz = (d / 2 - 1.1) * Math.sin(a), hh = rr(0.9, 1.3);
+      g.add(mesh(box(0.05, hh, 0.05), '#5c940d', x + rx, hh / 2, z + rz), mesh(box(0.1, 0.25, 0.1), '#7a4b24', x + rx, hh, z + rz));
+    }
     for (let a = 0; a < 6.28; a += 0.4) inner.push([x + Math.cos(a) * (w / 2 - 2.5), z + Math.sin(a) * (d / 2 - 2.5), 4, 3]);
     mapShapes.water.push({ x, z, rx: w / 2 - 1, rz: d / 2 - 1 });
   }
@@ -193,7 +223,8 @@ function zoneContent(zn, inner) {
     for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
       const hx = x - 3 + i * 3, hz = z - 1.5 + j * 3;
       const hive = new THREE.Group();
-      hive.add(mesh(box(0.9, 0.9, 0.9), '#fff3bf', 0, 0.55, 0), mesh(box(1.1, 0.15, 1.1), '#e8590c', 0, 1.05, 0), mesh(box(0.3, 0.1, 0.1), '#5c3a1e', 0, 0.3, 0.46));
+      hive.add(mesh(box(0.8, 0.12, 0.8), '#8d5524', 0, 0.06, 0), mesh(box(0.9, 0.45, 0.9), '#fff3bf', 0, 0.35, 0), mesh(box(0.92, 0.42, 0.92), '#ffe066', 0, 0.78, 0),
+        mesh(box(1.1, 0.15, 1.1), '#e8590c', 0, 1.06, 0), mesh(box(0.3, 0.08, 0.1), '#5c3a1e', 0, 0.2, 0.46), mesh(box(0.2, 0.06, 0.1), '#5c3a1e', 0, 0.65, 0.47));
       hive.position.set(hx, 0, hz); g.add(hive); inner.push([hx, hz, 1.1, 1.1]);
     }
   }
@@ -207,6 +238,8 @@ function zoneContent(zn, inner) {
   if (zn.kind === 'greenhouse') {
     g.add(mesh(box(w - 2, 2.6, d - 1.6), '#e7f5ff', x, 1.3, z, { transparent: true, opacity: 0.4, emissive: '#5a7a90' }));
     g.add(mesh(box(w - 1.8, 0.15, d - 1.4), '#495057', x, 2.65, z));
+    for (const fx of [-1, -0.5, 0, 0.5, 1]) for (const fz of [-1, 1]) g.add(mesh(box(0.1, 2.6, 0.1), '#f8f9fa', x + fx * (w - 2) / 2, 1.3, z + fz * (d - 1.6) / 2));
+    for (const fz of [-1, 1]) g.add(mesh(box(w - 2, 0.1, 0.1), '#f8f9fa', x, 1.3, z + fz * (d - 1.6) / 2));
     inner.push([x, z, w - 1.4, d - 1.2]);
   }
   scene.add(g);
@@ -218,7 +251,9 @@ function building0(wall, roof, w, d, h) {
   const g = new THREE.Group();
   g.add(mesh(box(w, h, d), wall, 0, h / 2, 0));
   const r = gableRoof(w + 0.5, d + 0.5, h * 0.55, roof); r.position.y = h; g.add(r);
-  g.add(mesh(box(0.8, 1.3, 0.1), '#5c3a1e', 0, 0.65, d / 2 + 0.03));
+  houseBase(g, w, d, h, roof, h * 0.55);
+  doorAt(g, 0.8, 1.3, d / 2 + 0.03, '#5c3a1e', true);
+  if (w >= 4) for (const x of [-w / 3, w / 3]) windowAt(g, x, h * 0.62, d / 2 + 0.03, null);
   return g;
 }
 
@@ -328,12 +363,16 @@ export const zoneById = id => zoneState[id]?.zone;
 export const isLocked = id => zoneState[id]?.locked;
 
 // ---------- природа ----------
+// Кочка из 4 травинок: у каждой основание, перегиб и острый кончик; низ тёмный, верх светлый
 function grassGeometry() {
-  const pos = [], col = [], base = new THREE.Color('#3f8a2a'), tip = new THREE.Color('#9bd65a');
-  for (let k = 0; k < 3; k++) {
-    const a = k * Math.PI / 3, c = Math.cos(a) * 0.07, s = Math.sin(a) * 0.07, lean = (k - 1) * 0.06;
-    pos.push(-c, 0, -s, c, 0, s, lean, 0.42 + k * 0.05, 0);
-    col.push(...base.toArray(), ...base.toArray(), ...tip.toArray());
+  const pos = [], col = [], C = ['#3f8a2a', '#6cb33f', '#a9dc6a'].map(c => new THREE.Color(c).toArray());
+  for (let k = 0; k < 4; k++) {
+    const a = k * 2.4, ca = Math.cos(a), sa = Math.sin(a), r = 0.02 + (k % 2) * 0.05, x = ca * r, z = sa * r;
+    const w = 0.035, h = 0.32 + (k % 3) * 0.08, lean = 0.08 + (k % 2) * 0.06;
+    const px = -sa * w, pz = ca * w, lx = ca * lean, lz = sa * lean;
+    const B0 = [x - px, 0, z - pz], B1 = [x + px, 0, z + pz];
+    const M0 = [x - px * 0.7 + lx * 0.4, h * 0.5, z - pz * 0.7 + lz * 0.4], M1 = [x + px * 0.7 + lx * 0.4, h * 0.5, z + pz * 0.7 + lz * 0.4], T = [x + lx, h, z + lz];
+    for (const [v, c] of [[B0, 0], [B1, 0], [M1, 1], [B0, 0], [M1, 1], [M0, 1], [M0, 1], [M1, 1], [T, 2]]) { pos.push(...v); col.push(...C[c]); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -436,7 +475,7 @@ function butterflies() {
     const g = new THREE.Group();
     const a = mesh(wingG, c, -0.11, 0, 0, { side: THREE.DoubleSide }), b = mesh(wingG, c, 0.11, 0, 0, { side: THREE.DoubleSide });
     a.castShadow = b.castShadow = false;
-    g.add(a, b);
+    g.add(a, b, mesh(box(0.04, 0.04, 0.18), '#343a40'));
     const cx = rr(-30, 30), cz = rr(-25, 30), ph = rnd() * 6;
     scene.add(g);
     animated.push((dt, t) => {

@@ -1,5 +1,6 @@
 // Ферма: грядки (вскопать → посадить → вырастет → собрать), техника, животные, рынок, украшения.
 import * as THREE from 'three';
+import { softBox } from './soft.js';
 import { CONFIG } from './config.js';
 import { ZONES } from '../data/map.js';
 import { S, save } from './save.js';
@@ -121,8 +122,8 @@ function rebuild() {
 
 // ---------- техника ----------
 const MACHINES = {
-  tractor: { model: 'cars/tractor', h: 1.9, x: 5, z: 19, rot: -0.6, name: 'Трактор' },
-  seeder:  { model: 'cars/tractor', h: 1.6, x: 4.2, z: 22.2, rot: -0.3, name: 'Сеялка', seeder: true },
+  tractor: { model: 'cars/tractor', h: 2.15, x: 5, z: 19, rot: -0.6, name: 'Трактор' },
+  seeder:  { model: 'cars/tractor', h: 1.8, x: 4.2, z: 22.2, rot: -0.3, name: 'Сеялка', seeder: true },
   combine: { model: 'cars/tractor-shovel', h: 2.2, x: 15.5, z: 13, rot: -1.2, name: 'Комбайн' },
   truck:   { model: 'cars/truck', h: 2.2, x: 16, z: 19.5, rot: -0.4, name: 'Грузовик' },
 };
@@ -133,7 +134,7 @@ function makeMachine(id) {
   const m = MACHINES[id];
   const o = fitHeight(cloneModel(m.model), m.h);
   if (m.seeder) { // ящик-сеялка сзади
-    const box = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 0.8), new THREE.MeshLambertMaterial({ color: '#2f9e44' }));
+    const box = new THREE.Mesh(softBox(1.6, 0.6, 0.8), new THREE.MeshLambertMaterial({ color: '#2f9e44', flatShading: true }));
     box.position.set(0, 0.6, -1.4); box.castShadow = true;
     const g = new THREE.Group(); g.add(o, box); return g;
   }
@@ -153,9 +154,9 @@ function showMachines() {
   }
   // покраска трактора: тонируем только кузов
   if (parked.tractor) {
-    if (!tractorBody.length) parked.tractor.traverse(o => { if (o.isMesh && o.name.includes('body')) { o.material = o.material.clone(); tractorBody.push(o); } });
+    if (!tractorBody.length) parked.tractor.traverse(o => { if (o.isMesh && o.name.includes('body')) { o.material = o.material.clone(); o.userData.base = '#' + o.material.color.getHexString(); tractorBody.push(o); } });
     for (const b of tractorBody) {
-      b.material.color.set(S.paint || '#ffffff');
+      b.material.color.set(S.paint || b.userData.base);
       b.material.emissive.set(S.paint === '#ffd43b' ? '#5a4500' : '#000000');
     }
   }
@@ -337,7 +338,7 @@ function showYardPets() {
   for (const [id, [model, h, tint]] of Object.entries(defs)) {
     if (!S.decor.includes(id) || yardPets[id]) continue;
     const a = new Actor(model, { height: h });
-    if (tint) a.body.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.set(tint); o.material.emissive = new THREE.Color('#4a3a00'); } });
+    if (tint) a.body.traverse(o => { if (o.isMesh && o.name === 'plumage') { o.material = o.material.clone(); o.material.color.set(tint); o.material.emissive = new THREE.Color('#4a3a00'); } });
     a.root.position.set(-6, 0, 21); a.speed = 1; a.wait = 0;
     scene.add(a.root); yardPets[id] = a;
   }
@@ -352,8 +353,8 @@ function updateYardPets(dt) {
 // ---------- украшения ----------
 const decorObjs = {};
 function showDecor() {
-  const m = (geo, c, x, y, z) => { const o = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: c })); o.position.set(x, y, z); o.castShadow = true; return o; };
-  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+  const m = (geo, c, x, y, z) => { const o = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: c, flatShading: true })); o.position.set(x, y, z); o.castShadow = true; return o; };
+  const B = (w, h, d) => softBox(w, h, d);
   const make = {
     scarecrow() {
       const g = new THREE.Group();
@@ -408,7 +409,7 @@ function showDecor() {
     },
     cathouse() { // домик для Симы: вечером она спит в нём
       const g = new THREE.Group();
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.55, 4), new THREE.MeshLambertMaterial({ color: '#e64980' }));
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.55, 4), new THREE.MeshLambertMaterial({ color: '#e64980', flatShading: true }));
       roof.position.y = 1.1; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
       g.add(m(B(0.9, 0.8, 0.9), '#ffd8a8', 0, 0.4, 0), roof, m(new THREE.CircleGeometry(0.22, 14), '#2b2a1f', 0, 0.35, 0.46));
       g.position.set(26, 0, 34); blockRect(26, 34, 1, 1); return g;
@@ -469,7 +470,7 @@ function showDecor() {
     balloon() { // воздушный шар кружит над фермой
       const g = new THREE.Group();
       ['#e03131', '#ffd43b', '#e03131', '#ffd43b', '#e03131', '#ffd43b', '#e03131', '#ffd43b'].forEach((c, i) => {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(2.4, 6, 14, i * Math.PI / 4, Math.PI / 4), new THREE.MeshLambertMaterial({ color: c }));
+        const s = new THREE.Mesh(new THREE.SphereGeometry(2.4, 6, 14, i * Math.PI / 4, Math.PI / 4), new THREE.MeshLambertMaterial({ color: c, flatShading: true }));
         s.scale.y = 1.2; s.position.y = 4; s.castShadow = true; g.add(s);
       });
       g.add(m(B(1, 0.8, 1), '#8d5524', 0, 0, 0));

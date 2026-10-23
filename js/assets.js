@@ -2,13 +2,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { isStatic, buildStatic, dress } from './models.js';
 
 THREE.Cache.enabled = true;
 
 const models = {};      // 'pack/name' -> gltf
 const materials = {};   // общий материал на пакет+имя
 
-// Список нужных моделей: пакет -> имена файлов
+// Список нужных моделей: пакет -> имена файлов. Статичные строит models.js (файлы не грузим),
+// у животных и сундука берём только узлы и анимации.
 const LIST = {
   chars: ['character-male-a', 'character-male-b', 'character-male-c', 'character-male-d', 'character-male-e', 'character-male-f',
           'character-female-b', 'character-female-c', 'character-female-f'],
@@ -41,7 +43,9 @@ function shared(pack, m) {
 
 export async function loadAll(onProgress) {
   const loader = new GLTFLoader();
-  const jobs = Object.entries(LIST).flatMap(([pack, names]) => names.map(n => [pack, n]));
+  const all = Object.entries(LIST).flatMap(([pack, names]) => names.map(n => [pack, n]));
+  for (const [pack, name] of all) if (isStatic(pack + '/' + name)) models[pack + '/' + name] = { scene: buildStatic(pack + '/' + name), animations: [] };
+  const jobs = all.filter(([pack, name]) => !models[pack + '/' + name]);
   let done = 0;
   await Promise.all(jobs.map(async ([pack, name]) => {
     const gltf = await loader.loadAsync(`assets/models/${pack}/${name}.glb`);
@@ -51,6 +55,7 @@ export async function loadAll(onProgress) {
         o.castShadow = o.receiveShadow = true;
       }
     });
+    dress(pack + '/' + name, gltf.scene);
     models[pack + '/' + name] = gltf;
     onProgress(++done / jobs.length);
   }));

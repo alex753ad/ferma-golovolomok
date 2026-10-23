@@ -84,7 +84,7 @@ export class Actor {
 }
 
 // Простые шапки поверх модели (кепка Льва, соломенная шляпа деда и т.п.)
-const hatMat = c => new THREE.MeshLambertMaterial({ color: c });
+const hatMat = c => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
 function addHat(body, kind) {
   const head = body.getObjectByName('head');
   if (!head) return;
@@ -98,7 +98,7 @@ function addHat(body, kind) {
   };
   if (kind === 'cap' || kind === 'capBrown') {
     const brown = kind === 'capBrown';
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), hatMat(brown ? '#7a5230' : '#1971c2'));
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2), hatMat(brown ? '#7a5230' : '#1971c2'));
     dome.scale.set(0.96, 0.42, 0.78);
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.025, 0.16), hatMat(brown ? '#5e3e22' : '#1864ab'));
     visor.position.set(0, 0.01, 0.25);
@@ -109,7 +109,7 @@ function addHat(body, kind) {
   } else if (kind === 'drone') {
     // кепка-квадрокоптер: корпус, 4 луча, моторы, пропеллеры в защите, камера и огонёк
     const box = (w, h, d, c, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), hatMat(c)); m.position.set(x, y, z); g.add(m); return m; };
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), hatMat('#e9ecef'));
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2), hatMat('#e9ecef'));
     dome.scale.set(0.96, 0.42, 0.78);
     g.add(dome);
     box(0.36, 0.025, 0.16, '#343a40', 0, 0.01, 0.25); // козырёк
